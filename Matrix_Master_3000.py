@@ -1,27 +1,98 @@
 import streamlit as st
 import pandas as pd
-from fractions import Fraction
 import sympy as sp
 from fpdf import FPDF
-import base64
 import random
 
 # Configuración de la página
 st.set_page_config(page_title="Matrix Master PRO", layout="wide", page_icon="🧮")
 
-# Función para generar el PDF
+# --- FUNCIONES DE RESOLUCIÓN PASO A PASO ---
+
+def resolver_gauss_robot(M_aug):
+    """Algoritmo estricto: pivote a 1 y ceros arriba/abajo."""
+    n_eqs, n_cols = M_aug.shape
+    st.write("### 🤖 Procedimiento: Gauss-Jordan Estricto")
+    st.latex(sp.latex(M_aug))
+    st.divider()
+
+    for i in range(min(n_eqs, n_cols - 1)):
+        pivote = M_aug[i, i]
+        
+        # Si el pivote es 0, buscar intercambio
+        if pivote == 0:
+            for j in range(i + 1, n_eqs):
+                if M_aug[j, i] != 0:
+                    M_aug[i, :], M_aug[j, :] = M_aug[j, :], M_aug[i, :]
+                    st.write(f"**Operación:** $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$")
+                    st.latex(sp.latex(M_aug))
+                    pivote = M_aug[i, i]
+                    break
+        
+        # Hacer el pivote 1
+        if pivote != 0 and pivote != 1:
+            M_aug[i, :] = M_aug[i, :] / pivote
+            st.write(f"**Operación:** $R_{{ {i+1} }} \\div {sp.latex(pivote)} \\to R_{{ {i+1} }}$")
+            st.latex(sp.latex(M_aug))
+        
+        # Hacer ceros arriba y abajo
+        for j in range(n_eqs):
+            if i != j and M_aug[j, i] != 0:
+                factor = M_aug[j, i]
+                M_aug[j, :] = M_aug[j, :] - factor * M_aug[i, :]
+                st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
+                st.latex(sp.latex(M_aug))
+    return M_aug
+
+def resolver_gauss_humano(M_aug):
+    """Algoritmo humano: busca 1s e intercambia filas antes de dividir."""
+    n_eqs, n_cols = M_aug.shape
+    st.write("### 🧠 Procedimiento: Gauss-Jordan Humano")
+    st.latex(sp.latex(M_aug))
+    st.divider()
+
+    for i in range(min(n_eqs, n_cols - 1)):
+        # 1. Buscar un 1 o -1 estratégico debajo
+        for j in range(i + 1, n_eqs):
+            if abs(M_aug[j, i]) == 1:
+                M_aug[i, :], M_aug[j, :] = M_aug[j, :], M_aug[i, :]
+                st.write(f"**Operación:** $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$ (Buscando el 1)")
+                st.latex(sp.latex(M_aug))
+                break
+        
+        pivote = M_aug[i, i]
+        if pivote == 0:
+            for j in range(i + 1, n_eqs):
+                if M_aug[j, i] != 0:
+                    M_aug[i, :], M_aug[j, :] = M_aug[j, :], M_aug[i, :]
+                    st.write(f"**Operación:** $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$")
+                    st.latex(sp.latex(M_aug))
+                    pivote = M_aug[i, i]
+                    break
+
+        # Convertir pivote a 1 si no lo es
+        if pivote != 0 and pivote != 1:
+            M_aug[i, :] = M_aug[i, :] / pivote
+            st.write(f"**Operación:** $R_{{ {i+1} }} \\div {sp.latex(pivote)} \\to R_{{ {i+1} }}$")
+            st.latex(sp.latex(M_aug))
+
+        # Ceros arriba y abajo
+        for j in range(n_eqs):
+            if i != j and M_aug[j, i] != 0:
+                factor = M_aug[j, i]
+                M_aug[j, :] = M_aug[j, :] - factor * M_aug[i, :]
+                st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
+                st.latex(sp.latex(M_aug))
+    return M_aug
+
+# Función para generar el PDF (Sin cambios significativos)
 def generar_pdf(A, b):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Hoja de Práctica: Álgebra Lineal", ln=True, align='C')
+    pdf.cell(200, 10, txt="Hoja de Practica: Algebra Lineal", ln=True, align='C')
     pdf.ln(10)
-    
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Resuelve el siguiente sistema por el método de Gauss-Jordan:", ln=True)
-    pdf.ln(5)
-    
-    # Escribir el sistema de ecuaciones
     for i in range(len(A)):
         eq_str = ""
         for j in range(len(A[0])):
@@ -30,23 +101,20 @@ def generar_pdf(A, b):
             eq_str += f"{signo}{coef}x{j+1}"
         eq_str += f" = {b[i][0]}"
         pdf.cell(200, 10, txt=eq_str, ln=True)
-    
-    pdf.ln(20)
-    pdf.set_font("Arial", 'I', 10)
-    pdf.cell(200, 10, txt="_________________ Procedimiento _________________", ln=True, align='C')
-    
     return bytes(pdf.output())
 
 st.title("🧮 Matrix Master: Edition Antigravity")
-st.write("Generador de sistemas, resolución exacta y exportación a PDF.")
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Configuración")
+    st.header("⚙️ Configuracion")
     n_vars = st.number_input("Variables:", min_value=1, max_value=6, value=3)
     n_eqs = st.number_input("Ecuaciones:", min_value=1, max_value=6, value=n_vars)
     
-    st.subheader("🎲 Generación")
+    # NUEVO: Selector de Método
+    metodo_op = st.radio("Estrategia de Resolución:", ["Robot (Algoritmo Fijo)", "Humano (Intercambios Inteligentes)"])
+    
+    st.subheader("🎲 Generacion")
     rango = st.slider("Rango de enteros:", -20, 20, (-9, 9))
     
     if st.button("Generar Sistema Aleatorio"):
@@ -81,12 +149,14 @@ with c1:
             M_aug = A_sym.row_join(b_sym)
             
             st.divider()
-            st.latex(r"\text{Matriz Inicial: } " + sp.latex(M_aug))
             
-            # Resultado RREF
-            res_rref, pivots = M_aug.rref()
-            st.success("✅ Forma Escalonada Reducida (Gauss-Jordan):")
-            st.latex(sp.latex(res_rref))
+            # Ejecutar el método seleccionado
+            if metodo_op == "Robot (Algoritmo Fijo)":
+                res_final = resolver_gauss_robot(M_aug.copy())
+            else:
+                res_final = resolver_gauss_humano(M_aug.copy())
+            
+            st.success("✅ ¡Sistema resuelto!")
             
             # Soluciones
             vars_sym = [sp.symbols(f'x_{i+1}') for i in range(n_vars)]
@@ -98,11 +168,10 @@ with c1:
                     st.latex(f"{sp.latex(v)} = {sp.latex(sols.get(v, sp.symbols('Libre')))}")
             else:
                 st.warning("⚠️ El sistema no tiene solución única.")
-        except:
-            st.error("Error: Revisa que todos los campos tengan números o fracciones (ej. 1/2).")
+        except Exception as e:
+            st.error(f"Error: {e}")
 
 with c2:
-    # Generar PDF
     pdf_data = generar_pdf(A_edit.values.tolist(), b_edit.values.tolist())
     st.download_button(
         label="📥 Descargar Hoja de Práctica (PDF)",
@@ -114,15 +183,18 @@ with c2:
 
 # --- HERRAMIENTAS EXTRAS ---
 with st.expander("🛠️ Otras Operaciones"):
-    A_sym_ex = sp.Matrix([[sp.Rational(x) for x in row] for row in A_edit.values])
-    t1, t2 = st.tabs(["Inversa", "Determinante"])
-    with t1:
-        if n_vars == n_eqs:
-            if A_sym_ex.det() != 0:
-                st.latex(r"A^{-1} = " + sp.latex(A_sym_ex.inv()))
-            else: st.write("La matriz es singular.")
-    with t2:
-        if n_vars == n_eqs:
-
-            st.latex(r"|A| = " + sp.latex(A_sym_ex.det()))
-
+    try:
+        A_sym_ex = sp.Matrix([[sp.Rational(x) for x in row] for row in A_edit.values])
+        t1, t2 = st.tabs(["Inversa", "Determinante"])
+        with t1:
+            if n_vars == n_eqs:
+                if A_sym_ex.det() != 0:
+                    st.latex(r"A^{-1} = " + sp.latex(A_sym_ex.inv()))
+                else: st.write("La matriz es singular.")
+            else: st.write("Debe ser una matriz cuadrada.")
+        with t2:
+            if n_vars == n_eqs:
+                st.latex(r"|A| = " + sp.latex(A_sym_ex.det()))
+            else: st.write("Debe ser una matriz cuadrada.")
+    except:
+        st.write("Carga datos válidos para ver operaciones.")
