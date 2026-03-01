@@ -4,6 +4,7 @@ from fractions import Fraction
 import sympy as sp
 from fpdf import FPDF
 import base64
+import random
 
 # Configuración de la página
 st.set_page_config(page_title="Matrix Master PRO", layout="wide", page_icon="🧮")
@@ -50,7 +51,7 @@ with st.sidebar:
     
     if st.button("Generar Sistema Aleatorio"):
         st.session_state.matrix_A = pd.DataFrame(
-            [[str(sp.randint(rango[0], rango[1]+1)) for _ in range(n_vars)] for _ in range(n_eqs)]
+            [[str(random.randint(rango[0], rango[1])) for _ in range(n_vars)] for _ in range(n_eqs)]
         )
         st.session_state.vector_b = pd.DataFrame(
             [[str(sp.randint(rango[0], rango[1]+1))] for _ in range(n_eqs)]
@@ -122,4 +123,5 @@ with st.expander("🛠️ Otras Operaciones"):
             else: st.write("La matriz es singular.")
     with t2:
         if n_vars == n_eqs:
+
             st.latex(r"|A| = " + sp.latex(A_sym_ex.det()))
