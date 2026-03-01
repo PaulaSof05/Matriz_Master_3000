@@ -54,7 +54,7 @@ with st.sidebar:
             [[str(random.randint(rango[0], rango[1])) for _ in range(n_vars)] for _ in range(n_eqs)]
         )
         st.session_state.vector_b = pd.DataFrame(
-            [[str(sp.randint(rango[0], rango[1]+1))] for _ in range(n_eqs)]
+            [[str(random.randint(rango[0], rango[1]))] for _ in range(n_eqs)]
         )
 
 # --- INICIALIZACIÓN ---
@@ -125,3 +125,4 @@ with st.expander("🛠️ Otras Operaciones"):
         if n_vars == n_eqs:
 
             st.latex(r"|A| = " + sp.latex(A_sym_ex.det()))
+
