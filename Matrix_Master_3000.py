@@ -122,21 +122,21 @@ with st.sidebar:
     
     st.subheader("🎲 Generación")
     dificultad = st.select_slider(
-        "Nivel de 'Fealdad':",
-        options=["Bonito (Enteros)", "Normal (Fracciones simples)", "Caos (Aleatorio)"],
-        value="Normal (Fracciones simples)"
+        "Nivel de dificultad:",
+        options=["Facil", "Medio", "Dificil"],
+        value="Medio"
     )
     rango = st.slider("Rango de números:", -15, 15, (-9, 9))
     
     if st.button("Generar Sistema de ecuaciones"):
-        if dificultad == "Bonito (Enteros)":
+        if dificultad == "Facil":
             # Generamos solución entera primero
             sol = [random.randint(-3, 3) for _ in range(n_vars)]
             A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
             # b es el resultado exacto de A * sol
             b_raw = [[sum(A_raw[i][j] * sol[j] for j in range(n_vars))] for i in range(n_eqs)]
             
-        elif dificultad == "Normal (Fracciones simples)":
+        elif dificultad == "Medio":
             # Generamos solución con denominadores pequeños (2, 3, 4)
             den = random.choice([2, 3, 4])
             sol = [sp.Rational(random.randint(-5, 5), den) for _ in range(n_vars)]
@@ -224,4 +224,5 @@ with st.expander("🛠️ Otras Operaciones"):
             else: st.write("Debe ser una matriz cuadrada.")
     except:
         st.write("Carga datos válidos para ver operaciones.")
+
 
