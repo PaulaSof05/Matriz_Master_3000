@@ -19,7 +19,6 @@ def resolver_gauss_robot(M_aug):
     for i in range(min(n_eqs, n_cols - 1)):
         pivote = M_aug[i, i]
         
-        # Si el pivote es 0, buscar intercambio
         if pivote == 0:
             for j in range(i + 1, n_eqs):
                 if M_aug[j, i] != 0:
@@ -29,13 +28,13 @@ def resolver_gauss_robot(M_aug):
                     pivote = M_aug[i, i]
                     break
         
-        # Hacer el pivote 1
+        # CAMBIO AQUÍ: Mostrar como multiplicación por fracción
         if pivote != 0 and pivote != 1:
-            M_aug[i, :] = M_aug[i, :] / pivote
-            st.write(f"**Operación:** $R_{{ {i+1} }} \\div {sp.latex(pivote)} \\to R_{{ {i+1} }}$")
+            inverso = sp.Rational(1, pivote)
+            M_aug[i, :] = M_aug[i, :] * inverso
+            st.write(f"**Operación:** $({sp.latex(inverso)}) R_{{ {i+1} }} \\to R_{{ {i+1} }}$")
             st.latex(sp.latex(M_aug))
         
-        # Hacer ceros arriba y abajo
         for j in range(n_eqs):
             if i != j and M_aug[j, i] != 0:
                 factor = M_aug[j, i]
@@ -45,14 +44,13 @@ def resolver_gauss_robot(M_aug):
     return M_aug
 
 def resolver_gauss_humano(M_aug):
-    """Algoritmo humano: busca 1s e intercambia filas antes de dividir."""
+    """Algoritmo humano: busca 1s e intercambia filas antes de operar."""
     n_eqs, n_cols = M_aug.shape
     st.write("### 🧠 Procedimiento: Gauss-Jordan Humano")
     st.latex(sp.latex(M_aug))
     st.divider()
 
     for i in range(min(n_eqs, n_cols - 1)):
-        # 1. Buscar un 1 o -1 estratégico debajo
         for j in range(i + 1, n_eqs):
             if abs(M_aug[j, i]) == 1:
                 M_aug[i, :], M_aug[j, :] = M_aug[j, :], M_aug[i, :]
@@ -70,13 +68,13 @@ def resolver_gauss_humano(M_aug):
                     pivote = M_aug[i, i]
                     break
 
-        # Convertir pivote a 1 si no lo es
+        # CAMBIO AQUÍ: Mostrar como multiplicación por fracción
         if pivote != 0 and pivote != 1:
-            M_aug[i, :] = M_aug[i, :] / pivote
-            st.write(f"**Operación:** $R_{{ {i+1} }} \\div {sp.latex(pivote)} \\to R_{{ {i+1} }}$")
+            inverso = sp.Rational(1, pivote)
+            M_aug[i, :] = M_aug[i, :] * inverso
+            st.write(f"**Operación:** $({sp.latex(inverso)}) R_{{ {i+1} }} \\to R_{{ {i+1} }}$")
             st.latex(sp.latex(M_aug))
 
-        # Ceros arriba y abajo
         for j in range(n_eqs):
             if i != j and M_aug[j, i] != 0:
                 factor = M_aug[j, i]
@@ -84,7 +82,7 @@ def resolver_gauss_humano(M_aug):
                 st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
                 st.latex(sp.latex(M_aug))
     return M_aug
-
+    
 # Función para generar el PDF (Sin cambios significativos)
 def generar_pdf(A, b):
     pdf = FPDF()
@@ -198,3 +196,4 @@ with st.expander("🛠️ Otras Operaciones"):
             else: st.write("Debe ser una matriz cuadrada.")
     except:
         st.write("Carga datos válidos para ver operaciones.")
+
