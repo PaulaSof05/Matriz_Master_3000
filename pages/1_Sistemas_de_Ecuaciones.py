@@ -8,7 +8,7 @@ st.set_page_config(page_title="Sistemas de Ecuaciones", layout="wide")
 # --- FUNCIONES DE RESOLUCIÓN ---
 def resolver_gauss_robot(M_aug):
     n_eqs, n_cols = M_aug.shape
-    st.write("### 🤖 Procedimiento: Gauss-Jordan Estricto")
+    st.write("### 🤖 Procedimiento: Gauss-Jordan")
     st.latex(sp.latex(M_aug))
     for i in range(min(n_eqs, n_cols - 1)):
         pivote = M_aug[i, i]
@@ -36,7 +36,7 @@ def resolver_gauss_robot(M_aug):
 
 def resolver_gauss_humano(M_aug):
     n_eqs, n_cols = M_aug.shape
-    st.write("### 🧠 Procedimiento: Gauss-Jordan Humano")
+    st.write("### 🧠 Procedimiento: Gauss-Jordan mas Humano")
     st.latex(sp.latex(M_aug))
     for i in range(min(n_eqs, n_cols - 1)):
         for j in range(i + 1, n_eqs):
@@ -63,8 +63,8 @@ st.title("🚀 Sistemas de Ecuaciones")
 with st.sidebar:
     n_vars = st.number_input("Variables:", 1, 6, 3)
     n_eqs = st.number_input("Ecuaciones:", 1, 6, 3)
-    metodo = st.radio("Método:", ["Gauss-Jordan Robot", "Gauss-Jordan Humano"])
-    dif = st.select_slider("Dificultad:", ["Fácil", "Medio", "Caos"], "Fácil")
+    metodo = st.radio("Método:", ["Gauss-Jordan", "Gauss-Jordan Humano"])
+    dif = st.select_slider("Dificultad:", ["Fácil", "Medio", "Aleatorio"], "Fácil")
     rango = st.slider("Rango:", -15, 15, (-9, 9))
 
     if st.button("🎲 Generar Sistema"):
@@ -107,4 +107,5 @@ if st.button("🚀 Resolver Paso a Paso", use_container_width=True):
         if sols:
             for v in vars_sym: st.latex(f"{sp.latex(v)} = {sp.latex(sols.get(v, 'Libre'))}")
         else: st.warning("Sin solución única.")
+
     except Exception as e: st.error(f"Error: {e}")
