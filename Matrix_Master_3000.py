@@ -120,17 +120,37 @@ with st.sidebar:
     # Selector de Método (Sincronizado con la lógica de abajo)
     metodo_op = st.radio("Estrategia de Resolución:", ["Gauss-Jordan", "Gauss-Jordan mas humano"])
     
-    st.subheader("🎲 Generacion")
-    rango = st.slider("Rango:", -20, 20, (-9, 9))
+    st.subheader("🎲 Generación")
+    dificultad = st.select_slider(
+        "Nivel de 'Fealdad':",
+        options=["Bonito (Enteros)", "Normal (Fracciones simples)", "Caos (Aleatorio)"],
+        value="Normal (Fracciones simples)"
+    )
+    rango = st.slider("Rango de números:", -15, 15, (-9, 9))
     
     if st.button("Generar Sistema de ecuaciones"):
-        st.session_state.matrix_A = pd.DataFrame(
-            [[str(random.randint(rango[0], rango[1])) for _ in range(n_vars)] for _ in range(n_eqs)]
-        )
-        st.session_state.vector_b = pd.DataFrame(
-            [[str(random.randint(rango[0], rango[1]))] for _ in range(n_eqs)]
-        )
+        if dificultad == "Bonito (Enteros)":
+            # Generamos solución entera primero
+            sol = [random.randint(-3, 3) for _ in range(n_vars)]
+            A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
+            # b es el resultado exacto de A * sol
+            b_raw = [[sum(A_raw[i][j] * sol[j] for j in range(n_vars))] for i in range(n_eqs)]
+            
+        elif dificultad == "Normal (Fracciones simples)":
+            # Generamos solución con denominadores pequeños (2, 3, 4)
+            den = random.choice([2, 3, 4])
+            sol = [sp.Rational(random.randint(-5, 5), den) for _ in range(n_vars)]
+            A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
+            b_raw = [[sum(A_raw[i][j] * sol[j] for j in range(n_vars))] for i in range(n_eqs)]
+            
+        else: # Caos Total
+            A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
+            b_raw = [[random.randint(rango[0], rango[1])] for _ in range(n_eqs)]
 
+        # Guardar todo como strings para el data_editor
+        st.session_state.matrix_A = pd.DataFrame([[str(x) for x in row] for row in A_raw])
+        st.session_state.vector_b = pd.DataFrame([[str(x[0])] for x in b_raw])
+        st.rerun() # Para refrescar los editores al instante
 # --- INICIALIZACIÓN ---
 if 'matrix_A' not in st.session_state:
     st.session_state.matrix_A = pd.DataFrame([["1"]*n_vars for _ in range(n_eqs)])
@@ -204,3 +224,4 @@ with st.expander("🛠️ Otras Operaciones"):
             else: st.write("Debe ser una matriz cuadrada.")
     except:
         st.write("Carga datos válidos para ver operaciones.")
+
