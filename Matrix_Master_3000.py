@@ -4,22 +4,25 @@ import sympy as sp
 from fpdf import FPDF
 import random
 
-# Configuración de la página
-st.set_page_config(page_title="Matrix Master", layout="wide", page_icon="🧮")
+# --- CONFIGURACIÓN E INICIALIZACIÓN ---
+st.set_page_config(page_title="Matrix Master PRO", layout="wide", page_icon="🧮")
 
-# --- FUNCIONES DE RESOLUCIÓN PASO A PASO ---
+# Inicializar estados si no existen
+if 'matriz_A' not in st.session_state:
+    st.session_state.matriz_A = pd.DataFrame([["1", "0", "0"], ["0", "1", "0"], ["0", "0", "1"]])
+if 'matriz_B' not in st.session_state:
+    st.session_state.matriz_B = pd.DataFrame([["1", "0", "0"], ["0", "1", "0"], ["0", "0", "1"]])
+if 'vector_b' not in st.session_state:
+    st.session_state.vector_b = pd.DataFrame([["0"], ["0"], ["0"]])
+
+# --- FUNCIONES DE GAUSS-JORDAN ---
 
 def resolver_gauss_robot(M_aug):
-    """Algoritmo estricto: pivote a 1 y ceros arriba/abajo (incluye pasos redundantes)."""
     n_eqs, n_cols = M_aug.shape
-    st.write("### Resuelto por Gauss-Jordan")
+    st.write("### 🤖 Procedimiento: Gauss-Jordan Estricto")
     st.latex(sp.latex(M_aug))
-    st.divider()
-
     for i in range(min(n_eqs, n_cols - 1)):
         pivote = M_aug[i, i]
-        
-        # Intercambio si el pivote es 0
         if pivote == 0:
             for j in range(i + 1, n_eqs):
                 if M_aug[j, i] != 0:
@@ -28,17 +31,13 @@ def resolver_gauss_robot(M_aug):
                     st.latex(sp.latex(M_aug))
                     pivote = M_aug[i, i]
                     break
-        
-        # Convertir pivote a 1 (aunque ya lo sea, se menciona en el modo robot)
         if pivote != 1:
             inverso = sp.Rational(1, pivote)
             M_aug[i, :] = M_aug[i, :] * inverso
             st.write(f"**Operación:** $({sp.latex(inverso)}) R_{{ {i+1} }} \\to R_{{ {i+1} }}$")
             st.latex(sp.latex(M_aug))
         else:
-            st.write(f"**Nota:** El pivote en $R_{{ {i+1} }}$ ya es $1$. No se requiere operación.")
-        
-        # Hacer ceros en toda la columna (incluyendo si ya es cero)
+            st.write(f"**Nota:** El pivote en $R_{{ {i+1} }}$ ya es $1$.")
         for j in range(n_eqs):
             if i != j:
                 factor = M_aug[j, i]
@@ -47,42 +46,26 @@ def resolver_gauss_robot(M_aug):
                     st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
                     st.latex(sp.latex(M_aug))
                 else:
-                    st.write(f"**Nota:** El elemento en $R_{{ {j+1} }}, C_{{ {i+1} }}$ ya es $0$. El renglón se mantiene igual.")
+                    st.write(f"**Nota:** En $R_{{ {j+1} }}$ ya hay un cero.")
     return M_aug
 
 def resolver_gauss_humano(M_aug):
-    """Algoritmo humano: busca 1s e intercambia filas antes de operar (más ágil)."""
     n_eqs, n_cols = M_aug.shape
-    st.write("### Resuelto por Gauss-Jordan mas Humano")
+    st.write("### 🧠 Procedimiento: Gauss-Jordan Humano")
     st.latex(sp.latex(M_aug))
-    st.divider()
-
     for i in range(min(n_eqs, n_cols - 1)):
-        # Buscar un 1 o -1 estratégico
         for j in range(i + 1, n_eqs):
             if abs(M_aug[j, i]) == 1:
                 M_aug[i, :], M_aug[j, :] = M_aug[j, :], M_aug[i, :]
-                st.write(f"**Operación:** $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$ (Buscando el 1)")
+                st.write(f"**Operación:** $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$ (Pivote ideal)")
                 st.latex(sp.latex(M_aug))
                 break
-        
         pivote = M_aug[i, i]
-        if pivote == 0:
-            for j in range(i + 1, n_eqs):
-                if M_aug[j, i] != 0:
-                    M_aug[i, :], M_aug[j, :] = M_aug[j, :], M_aug[i, :]
-                    st.write(f"**Operación:** $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$")
-                    st.latex(sp.latex(M_aug))
-                    pivote = M_aug[i, i]
-                    break
-
-        # Mostrar como multiplicación por fracción si no es 1
-        if pivote != 0 and pivote != 1:
+        if pivote != 1 and pivote != 0:
             inverso = sp.Rational(1, pivote)
             M_aug[i, :] = M_aug[i, :] * inverso
             st.write(f"**Operación:** $({sp.latex(inverso)}) R_{{ {i+1} }} \\to R_{{ {i+1} }}$")
             st.latex(sp.latex(M_aug))
-
         for j in range(n_eqs):
             if i != j and M_aug[j, i] != 0:
                 factor = M_aug[j, i]
@@ -90,139 +73,134 @@ def resolver_gauss_humano(M_aug):
                 st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
                 st.latex(sp.latex(M_aug))
     return M_aug
-    
-# Función para generar el PDF
-def generar_pdf(A, b):
+
+# --- UTILIDADES ---
+
+def generar_pdf(A, b=None):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Hoja de Practica: Algebra Lineal", ln=True, align='C')
+    pdf.cell(200, 10, txt="Matrix Master - Exportacion", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    for i in range(len(A)):
-        eq_str = ""
-        for j in range(len(A[0])):
-            coef = A[i][j]
-            signo = " + " if j > 0 and not str(coef).startswith('-') else " "
-            eq_str += f"{signo}{coef}x{j+1}"
-        eq_str += f" = {b[i][0]}"
-        pdf.cell(200, 10, txt=eq_str, ln=True)
+    pdf.cell(200, 10, txt="Matriz / Sistema:", ln=True)
+    for row in A:
+        pdf.cell(200, 10, txt=str(row), ln=True)
     return bytes(pdf.output())
 
-st.title("🧮 Matrix Master")
+# --- MENÚ LATERAL ---
 
-# --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Configuracion")
-    n_vars = st.number_input("Variables:", min_value=1, max_value=6, value=3)
-    n_eqs = st.number_input("Ecuaciones:", min_value=1, max_value=6, value=n_vars)
-    
-    # Selector de Método (Sincronizado con la lógica de abajo)
-    metodo_op = st.radio("Estrategia de Resolución:", ["Gauss-Jordan", "Gauss-Jordan mas humano"])
-    
-    st.subheader("🎲 Generación")
-    dificultad = st.select_slider(
-        "Nivel de dificultad:",
-        options=["Facil", "Medio", "Dificil"],
-        value="Medio"
+    st.title("🎮 Panel de Control")
+    opcion = st.selectbox(
+        "¿Qué quieres hacer?",
+        ["Sistemas de Ecuaciones", "Operaciones Básicas (A ± B)", "Multiplicación (A × B)", "Inversa y Determinante"]
     )
-    rango = st.slider("Rango de números:", -15, 15, (-9, 9))
+    st.divider()
     
-    if st.button("Generar Sistema de ecuaciones"):
-        if dificultad == "Facil":
-            # Generamos solución entera primero
-            sol = [random.randint(-3, 3) for _ in range(n_vars)]
-            A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
-            # b es el resultado exacto de A * sol
-            b_raw = [[sum(A_raw[i][j] * sol[j] for j in range(n_vars))] for i in range(n_eqs)]
-            
-        elif dificultad == "Medio":
-            # Generamos solución con denominadores pequeños (2, 3, 4)
-            den = random.choice([2, 3, 4])
-            sol = [sp.Rational(random.randint(-5, 5), den) for _ in range(n_vars)]
-            A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
-            b_raw = [[sum(A_raw[i][j] * sol[j] for j in range(n_vars))] for i in range(n_eqs)]
-            
-        else: # Caos Total
-            A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
-            b_raw = [[random.randint(rango[0], rango[1])] for _ in range(n_eqs)]
+    if opcion == "Sistemas de Ecuaciones":
+        n_vars = st.number_input("Variables:", 1, 6, 3)
+        n_eqs = st.number_input("Ecuaciones:", 1, 6, n_vars)
+        metodo = st.radio("Estrategia:", ["Gauss-Jordan", "Gauss-Jordan Humano"])
+        dif = st.select_slider("Dificultad:", ["Fácil", "Medio", "Difícil"], "Medio")
+    else:
+        rows_a = st.number_input("Filas A:", 1, 6, 3)
+        cols_a = st.number_input("Cols A:", 1, 6, 3)
+        if opcion == "Multiplicación (A × B)":
+            cols_b = st.number_input("Cols B:", 1, 6, 3)
+            rows_b = cols_a # Por regla de matrices
+        elif opcion == "Operaciones Básicas (A ± B)":
+            rows_b, cols_b = rows_a, cols_a
+        else: # Inversa
+            rows_b, cols_b = rows_a, cols_a
 
-        # Guardar todo como strings para el data_editor
-        st.session_state.matrix_A = pd.DataFrame([[str(x) for x in row] for row in A_raw])
-        st.session_state.vector_b = pd.DataFrame([[str(x[0])] for x in b_raw])
-        st.rerun() # Para refrescar los editores al instante
-# --- INICIALIZACIÓN ---
-if 'matrix_A' not in st.session_state:
-    st.session_state.matrix_A = pd.DataFrame([["1"]*n_vars for _ in range(n_eqs)])
-    st.session_state.vector_b = pd.DataFrame([["0"] for _ in range(n_eqs)])
+    rango = st.slider("Rango de valores:", -20, 20, (-9, 9))
 
-# --- EDITOR ---
-st.subheader("Sistema de Ecuaciones")
-col1, col2 = st.columns([3, 1])
-with col1:
-    A_edit = st.data_editor(st.session_state.matrix_A, key="A_ed")
-with col2:
-    b_edit = st.data_editor(st.session_state.vector_b, key="b_ed")
-
-# --- BOTONES DE ACCIÓN ---
-c1, c2 = st.columns(2)
-
-with c1:
-    if st.button("🚀 Procedimiento Paso a Paso", use_container_width=True):
-        try:
-            A_sym = sp.Matrix([[sp.Rational(x) for x in row] for row in A_edit.values])
-            b_sym = sp.Matrix([[sp.Rational(x[0])] for x in b_edit.values])
-            M_aug = A_sym.row_join(b_sym)
-            
-            st.divider()
-            
-            # Lógica de selección corregida
-            if metodo_op == "Gauss-Jordan":
-                res_final = resolver_gauss_robot(M_aug.copy())
+    if st.button("🎲 Generar Aleatorios"):
+        if opcion == "Sistemas de Ecuaciones":
+            if dif == "Fácil":
+                sol = [random.randint(-3, 3) for _ in range(n_vars)]
+                A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
+                b_raw = [[sum(A_raw[i][j] * sol[j] for j in range(n_vars))] for i in range(n_eqs)]
+            elif dif == "Medio":
+                den = random.choice([2, 3])
+                sol = [sp.Rational(random.randint(-4, 4), den) for _ in range(n_vars)]
+                A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
+                b_raw = [[sum(A_raw[i][j] * sol[j] for j in range(n_vars))] for i in range(n_eqs)]
             else:
-                res_final = resolver_gauss_humano(M_aug.copy())
+                A_raw = [[random.randint(rango[0], rango[1]) for _ in range(n_vars)] for _ in range(n_eqs)]
+                b_raw = [[random.randint(rango[0], rango[1])] for _ in range(n_eqs)]
+            st.session_state.matriz_A = pd.DataFrame([[str(x) for x in r] for r in A_raw])
+            st.session_state.vector_b = pd.DataFrame([[str(x[0])] for x in b_raw])
+        else:
+            st.session_state.matriz_A = pd.DataFrame([[str(random.randint(rango[0], rango[1])) for _ in range(cols_a)] for _ in range(rows_a)])
+            if opcion != "Inversa y Determinante":
+                st.session_state.matriz_B = pd.DataFrame([[str(random.randint(rango[0], rango[1])) for _ in range(cols_b)] for _ in range(rows_b)])
+        st.rerun()
+
+# --- ÁREA DE TRABAJO ---
+
+st.title(f"✨ {opcion}")
+
+if opcion == "Sistemas de Ecuaciones":
+    col1, col2 = st.columns([3, 1])
+    with col1: A_ed = st.data_editor(st.session_state.matriz_A)
+    with col2: b_ed = st.data_editor(st.session_state.vector_b)
+    
+    if st.button("🚀 Resolver Paso a Paso", use_container_width=True):
+        try:
+            A_sym = sp.Matrix([[sp.Rational(x) for x in row] for row in A_ed.values])
+            b_sym = sp.Matrix([[sp.Rational(x[0])] for x in b_ed.values])
+            M_aug = A_sym.row_join(b_sym)
+            if metodo == "Gauss-Jordan": resolver_gauss_robot(M_aug)
+            else: resolver_gauss_humano(M_aug)
             
-            st.success("✅ ¡Sistema resuelto!")
-            
-            # Soluciones
             vars_sym = [sp.symbols(f'x_{i+1}') for i in range(n_vars)]
             sols = sp.solve_linear_system(M_aug, *vars_sym)
-            
+            st.subheader("💡 Resultado Final:")
             if sols:
-                st.subheader("💡 Resultado Final:")
-                for v in vars_sym:
-                    st.latex(f"{sp.latex(v)} = {sp.latex(sols.get(v, sp.symbols('Libre')))}")
-            else:
-                st.warning("⚠️ El sistema no tiene solución única.")
-        except Exception as e:
-            st.error(f"Error: {e}")
+                for v in vars_sym: st.latex(f"{sp.latex(v)} = {sp.latex(sols.get(v, 'Libre'))}")
+            else: st.warning("Sistema sin solución única.")
+        except Exception as e: st.error(f"Error: {e}")
 
-with c2:
-    pdf_data = generar_pdf(A_edit.values.tolist(), b_edit.values.tolist())
-    st.download_button(
-        label="📥 Descargar Hoja de Ejercicios (PDF)",
-        data=pdf_data,
-        file_name="ejercicio_matrices.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
+elif opcion == "Operaciones Básicas (A ± B)":
+    c1, c2 = st.columns(2)
+    with c1: st.write("Matriz A"); A_ed = st.data_editor(st.session_state.matriz_A)
+    with c2: st.write("Matriz B"); B_ed = st.data_editor(st.session_state.matriz_B)
+    
+    op = st.radio("Operación:", ["Suma (A + B)", "Resta (A - B)"], horizontal=True)
+    if st.button("Calcular"):
+        A = sp.Matrix([[sp.Rational(x) for x in r] for r in A_ed.values])
+        B = sp.Matrix([[sp.Rational(x) for x in r] for r in B_ed.values])
+        res = A + B if "Suma" in op else A - B
+        st.latex(sp.latex(A) + ("+" if "Suma" in op else "-") + sp.latex(B) + "=" + sp.latex(res))
 
-# --- HERRAMIENTAS EXTRAS ---
-with st.expander("🛠️ Otras Operaciones"):
-    try:
-        A_sym_ex = sp.Matrix([[sp.Rational(x) for x in row] for row in A_edit.values])
-        t1, t2 = st.tabs(["Inversa", "Determinante"])
-        with t1:
-            if n_vars == n_eqs:
-                if A_sym_ex.det() != 0:
-                    st.latex(r"A^{-1} = " + sp.latex(A_sym_ex.inv()))
-                else: st.write("La matriz es singular.")
-            else: st.write("Debe ser una matriz cuadrada.")
-        with t2:
-            if n_vars == n_eqs:
-                st.latex(r"|A| = " + sp.latex(A_sym_ex.det()))
-            else: st.write("Debe ser una matriz cuadrada.")
-    except:
-        st.write("Carga datos válidos para ver operaciones.")
+elif opcion == "Multiplicación (A × B)":
+    c1, c2 = st.columns(2)
+    with c1: st.write("Matriz A"); A_ed = st.data_editor(st.session_state.matriz_A)
+    with c2: st.write("Matriz B"); B_ed = st.data_editor(st.session_state.matriz_B)
+    
+    if st.button("Calcular Producto"):
+        if A_ed.shape[1] == B_ed.shape[0]:
+            A = sp.Matrix([[sp.Rational(x) for x in r] for r in A_ed.values])
+            B = sp.Matrix([[sp.Rational(x) for x in r] for r in B_ed.values])
+            st.latex(sp.latex(A) + "\\times" + sp.latex(B) + "=" + sp.latex(A*B))
+        else: st.error("Las columnas de A deben coincidir con las filas de B.")
 
+elif opcion == "Inversa y Determinante":
+    A_ed = st.data_editor(st.session_state.matriz_A)
+    if st.button("Analizar Matriz"):
+        A = sp.Matrix([[sp.Rational(x) for x in r] for r in A_ed.values])
+        if A.is_square:
+            st.write(f"**Determinante:**")
+            st.latex(f"|A| = {A.det()}")
+            if A.det() != 0:
+                st.write(f"**Matriz Inversa:**")
+                st.latex(f"A^{{-1}} = {sp.latex(A.inv())}")
+            else: st.warning("La matriz es singular (no tiene inversa).")
+        else: st.error("La matriz debe ser cuadrada.")
 
+# --- FOOTER ---
+st.divider()
+if st.download_button("📥 Descargar PDF de la vista actual", generar_pdf(st.session_state.matriz_A.values.tolist()), "matrix.pdf"):
+    st.balloons()
