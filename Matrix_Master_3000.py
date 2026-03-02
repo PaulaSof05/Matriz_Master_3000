@@ -5,14 +5,14 @@ from fpdf import FPDF
 import random
 
 # Configuración de la página
-st.set_page_config(page_title="Matrix Master PRO", layout="wide", page_icon="🧮")
+st.set_page_config(page_title="Matrix Master", layout="wide", page_icon="🧮")
 
 # --- FUNCIONES DE RESOLUCIÓN PASO A PASO ---
 
 def resolver_gauss_robot(M_aug):
     """Algoritmo estricto: pivote a 1 y ceros arriba/abajo."""
     n_eqs, n_cols = M_aug.shape
-    st.write("### 🤖 Procedimiento: Gauss-Jordan Estricto")
+    st.write("### Resuelto por Gauss-Jordan")
     st.latex(sp.latex(M_aug))
     st.divider()
 
@@ -46,7 +46,7 @@ def resolver_gauss_robot(M_aug):
 def resolver_gauss_humano(M_aug):
     """Algoritmo humano: busca 1s e intercambia filas antes de operar."""
     n_eqs, n_cols = M_aug.shape
-    st.write("### 🧠 Procedimiento: Gauss-Jordan Humano")
+    st.write("### Resuelto por Gauss-Jordan mas Humano")
     st.latex(sp.latex(M_aug))
     st.divider()
 
@@ -101,7 +101,7 @@ def generar_pdf(A, b):
         pdf.cell(200, 10, txt=eq_str, ln=True)
     return bytes(pdf.output())
 
-st.title("🧮 Matrix Master: Edition Antigravity")
+st.title("🧮 Matrix Master")
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -110,12 +110,12 @@ with st.sidebar:
     n_eqs = st.number_input("Ecuaciones:", min_value=1, max_value=6, value=n_vars)
     
     # NUEVO: Selector de Método
-    metodo_op = st.radio("Estrategia de Resolución:", ["Robot (Algoritmo Fijo)", "Humano (Intercambios Inteligentes)"])
+    metodo_op = st.radio("Estrategia de Resolución:", ["Gauss-Jordan", "Gauss-Jordan mas humano"])
     
     st.subheader("🎲 Generacion")
-    rango = st.slider("Rango de enteros:", -20, 20, (-9, 9))
+    rango = st.slider("Rango:", -20, 20, (-9, 9))
     
-    if st.button("Generar Sistema Aleatorio"):
+    if st.button("Generar Sistema de ecuaciones"):
         st.session_state.matrix_A = pd.DataFrame(
             [[str(random.randint(rango[0], rango[1])) for _ in range(n_vars)] for _ in range(n_eqs)]
         )
@@ -129,7 +129,7 @@ if 'matrix_A' not in st.session_state:
     st.session_state.vector_b = pd.DataFrame([["0"] for _ in range(n_eqs)])
 
 # --- EDITOR ---
-st.subheader("✍️ Sistema de Ecuaciones (Matriz Aumentada)")
+st.subheader("Sistema de Ecuaciones")
 col1, col2 = st.columns([3, 1])
 with col1:
     A_edit = st.data_editor(st.session_state.matrix_A, key="A_ed")
@@ -140,7 +140,7 @@ with col2:
 c1, c2 = st.columns(2)
 
 with c1:
-    if st.button("🚀 Resolver con Paso a Paso", use_container_width=True):
+    if st.button("🚀 Procedimiento Paso a Paso", use_container_width=True):
         try:
             A_sym = sp.Matrix([[sp.Rational(x) for x in row] for row in A_edit.values])
             b_sym = sp.Matrix([[sp.Rational(x[0])] for x in b_edit.values])
@@ -172,7 +172,7 @@ with c1:
 with c2:
     pdf_data = generar_pdf(A_edit.values.tolist(), b_edit.values.tolist())
     st.download_button(
-        label="📥 Descargar Hoja de Práctica (PDF)",
+        label="📥 Descargar Hoja de Ejercicios (PDF)",
         data=pdf_data,
         file_name="ejercicio_matrices.pdf",
         mime="application/pdf",
@@ -196,4 +196,5 @@ with st.expander("🛠️ Otras Operaciones"):
             else: st.write("Debe ser una matriz cuadrada.")
     except:
         st.write("Carga datos válidos para ver operaciones.")
+
 
