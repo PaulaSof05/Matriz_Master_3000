@@ -10,7 +10,7 @@ st.set_page_config(page_title="Matrix Master", layout="wide", page_icon="🧮")
 # --- FUNCIONES DE RESOLUCIÓN PASO A PASO ---
 
 def resolver_gauss_robot(M_aug):
-    """Algoritmo estricto: pivote a 1 y ceros arriba/abajo."""
+    """Algoritmo estricto: pivote a 1 y ceros arriba/abajo (incluye pasos redundantes)."""
     n_eqs, n_cols = M_aug.shape
     st.write("### Resuelto por Gauss-Jordan")
     st.latex(sp.latex(M_aug))
@@ -19,6 +19,7 @@ def resolver_gauss_robot(M_aug):
     for i in range(min(n_eqs, n_cols - 1)):
         pivote = M_aug[i, i]
         
+        # Intercambio si el pivote es 0
         if pivote == 0:
             for j in range(i + 1, n_eqs):
                 if M_aug[j, i] != 0:
@@ -28,29 +29,36 @@ def resolver_gauss_robot(M_aug):
                     pivote = M_aug[i, i]
                     break
         
-        # CAMBIO AQUÍ: Mostrar como multiplicación por fracción
-        if pivote != 0 and pivote != 1:
+        # Convertir pivote a 1 (aunque ya lo sea, se menciona en el modo robot)
+        if pivote != 1:
             inverso = sp.Rational(1, pivote)
             M_aug[i, :] = M_aug[i, :] * inverso
             st.write(f"**Operación:** $({sp.latex(inverso)}) R_{{ {i+1} }} \\to R_{{ {i+1} }}$")
             st.latex(sp.latex(M_aug))
+        else:
+            st.write(f"**Nota:** El pivote en $R_{{ {i+1} }}$ ya es $1$. No se requiere operación.")
         
+        # Hacer ceros en toda la columna (incluyendo si ya es cero)
         for j in range(n_eqs):
-            if i != j and M_aug[j, i] != 0:
+            if i != j:
                 factor = M_aug[j, i]
-                M_aug[j, :] = M_aug[j, :] - factor * M_aug[i, :]
-                st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
-                st.latex(sp.latex(M_aug))
+                if factor != 0:
+                    M_aug[j, :] = M_aug[j, :] - factor * M_aug[i, :]
+                    st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
+                    st.latex(sp.latex(M_aug))
+                else:
+                    st.write(f"**Nota:** El elemento en $R_{{ {j+1} }}, C_{{ {i+1} }}$ ya es $0$. El renglón se mantiene igual.")
     return M_aug
 
 def resolver_gauss_humano(M_aug):
-    """Algoritmo humano: busca 1s e intercambia filas antes de operar."""
+    """Algoritmo humano: busca 1s e intercambia filas antes de operar (más ágil)."""
     n_eqs, n_cols = M_aug.shape
     st.write("### Resuelto por Gauss-Jordan mas Humano")
     st.latex(sp.latex(M_aug))
     st.divider()
 
     for i in range(min(n_eqs, n_cols - 1)):
+        # Buscar un 1 o -1 estratégico
         for j in range(i + 1, n_eqs):
             if abs(M_aug[j, i]) == 1:
                 M_aug[i, :], M_aug[j, :] = M_aug[j, :], M_aug[i, :]
@@ -68,7 +76,7 @@ def resolver_gauss_humano(M_aug):
                     pivote = M_aug[i, i]
                     break
 
-        # CAMBIO AQUÍ: Mostrar como multiplicación por fracción
+        # Mostrar como multiplicación por fracción si no es 1
         if pivote != 0 and pivote != 1:
             inverso = sp.Rational(1, pivote)
             M_aug[i, :] = M_aug[i, :] * inverso
@@ -83,7 +91,7 @@ def resolver_gauss_humano(M_aug):
                 st.latex(sp.latex(M_aug))
     return M_aug
     
-# Función para generar el PDF (Sin cambios significativos)
+# Función para generar el PDF
 def generar_pdf(A, b):
     pdf = FPDF()
     pdf.add_page()
@@ -109,7 +117,7 @@ with st.sidebar:
     n_vars = st.number_input("Variables:", min_value=1, max_value=6, value=3)
     n_eqs = st.number_input("Ecuaciones:", min_value=1, max_value=6, value=n_vars)
     
-    # NUEVO: Selector de Método
+    # Selector de Método (Sincronizado con la lógica de abajo)
     metodo_op = st.radio("Estrategia de Resolución:", ["Gauss-Jordan", "Gauss-Jordan mas humano"])
     
     st.subheader("🎲 Generacion")
@@ -148,8 +156,8 @@ with c1:
             
             st.divider()
             
-            # Ejecutar el método seleccionado
-            if metodo_op == "Robot (Algoritmo Fijo)":
+            # Lógica de selección corregida
+            if metodo_op == "Gauss-Jordan":
                 res_final = resolver_gauss_robot(M_aug.copy())
             else:
                 res_final = resolver_gauss_humano(M_aug.copy())
@@ -196,5 +204,3 @@ with st.expander("🛠️ Otras Operaciones"):
             else: st.write("Debe ser una matriz cuadrada.")
     except:
         st.write("Carga datos válidos para ver operaciones.")
-
-
