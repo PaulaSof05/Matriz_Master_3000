@@ -101,11 +101,50 @@ if st.button("🚀 Resolver Paso a Paso", use_container_width=True):
         if "Robot" in metodo: resolver_gauss_robot(M_aug)
         else: resolver_gauss_humano(M_aug)
         
-        st.subheader("💡 Resultado Final:")
+        # --- LÓGICA DE LOS 3 NIVELES (FORMATO HORIZONTAL Y CONJUNTOS) ---
+        st.subheader("💡 Resolución por Niveles")
+
         vars_sym = [sp.symbols(f'x_{i+1}') for i in range(n_vars)]
         sols = sp.solve_linear_system(M_aug, *vars_sym)
-        if sols:
-            for v in vars_sym: st.latex(f"{sp.latex(v)} = {sp.latex(sols.get(v, 'Libre'))}")
-        else: st.warning("Sin solución única.")
+
+        if sols is None:
+            st.error(r"Resultado: $\{ \emptyset \}$")
+        else:
+            libres = [v for v in vars_sym if v not in sols]
+            # Lista de expresiones (valores o variables libres)
+            lista_soluciones = [sols.get(v, v) for v in vars_sym]
+            
+            # --- NIVEL 1: DEFINICIÓN DE VARIABLES ---
+            # Formato: { (x1,x2,x3) : val1, val2... }
+            st.markdown("#### Nivel 1")
+            txt_vars = ",".join([sp.latex(v) for v in vars_sym])
+            txt_vals = ",".join([sp.latex(s) for s in lista_soluciones])
+            st.latex(rf"\{{ ({txt_vars}) : {txt_vals} \}}")
+
+            # --- NIVEL 2: CONJUNTO SOLUCIÓN GENERAL ---
+            # Formato: { val1, val2, val3 }
+            st.markdown("#### Nivel 2")
+            st.latex(rf"\{{ {txt_vals} \}}")
+
+            # --- NIVEL 3: DESCOMPOSICIÓN VECTORIAL HORIZONTAL ---
+            if libres:
+                st.markdown("#### Nivel 3")
+                # Vector constante (libres = 0)
+                constantes = [s.subs({v: 0 for v in libres}) for s in lista_soluciones]
+                txt_const = ",".join([sp.latex(c) for c in constantes])
+                
+                partes_n3 = [f"({txt_const})"]
+                
+                for v_libre in libres:
+                    # Obtenemos el "vector" director derivando cada componente
+                    directores = [sp.diff(s, v_libre) for s in lista_soluciones]
+                    txt_dir = ",".join([sp.latex(d) for d in directores])
+                    partes_n3.append(f"{sp.latex(v_libre)}({txt_dir})")
+                
+                suma_n3 = " + ".join(partes_n3)
+                st.latex(rf"\{{ {suma_n3} \}}")
+            else:
+                st.info("Nota: No se requiere Nivel 3 (Solución única).")
 
     except Exception as e: st.error(f"Error: {e}")
+
