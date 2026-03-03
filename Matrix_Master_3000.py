@@ -9,11 +9,6 @@ st.set_page_config(
     layout="wide", 
     page_icon="🧮",
     initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': None,
-        'Report a bug': None,
-        'About': None  # Esto quita la mayor parte del menú
-    }
 )
 
 # ESTO ES LO QUE REALMENTE QUITA EL BOTÓN DE "VIEW SOURCE" / GITHUB
@@ -65,4 +60,5 @@ with col2:
 
 st.markdown("---")
 st.caption("Matrix Master PRO - Desarrollado para el aprendizaje interactivo de Álgebra Lineal.")
+
 
