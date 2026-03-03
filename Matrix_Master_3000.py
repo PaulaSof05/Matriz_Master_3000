@@ -1,35 +1,30 @@
 import streamlit as st
 
-# Configuración global para todas las páginas
-import streamlit as st
-
-# Configuración global para ocultar el icono de GitHub
+# 1. Configuración de la página (Casi igual, pero limpia)
 st.set_page_config(
     page_title="Matrix Master PRO", 
     layout="wide", 
     page_icon="🧮",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': None,
-        'Report a bug': None,
-        'About': None  # Esto quita la mayor parte del menú
-    }
+    initial_sidebar_state="expanded"
 )
 
-# ESTO ES LO QUE REALMENTE QUITA EL BOTÓN DE "VIEW SOURCE" / GITHUB
+# 2. El CSS para borrar SOLO el rastro de GitHub
 st.markdown(
     """
     <style>
-    #MainMenu {visibility: hidden;}
+    /* Oculta el botón de 'Deploy' / GitHub de la barra superior */
+    .stAppDeployButton {
+        display: none !important;
+    }
+    
+    /* Oculta el enlace 'View source' que a veces aparece en el menú */
     footer {visibility: hidden;}
-    header {visibility: hidden;}
-    [data-testid="stStatusWidget"] {display: none;}
-    .viewerBadge_container__1QS1n {display: none;}
     </style>
     """,
     unsafe_allow_html=True
 )
 
+# ... aquí sigue el resto de tu código (Título, columnas, etc.)
 st.title("Welcome to Matrix Master PRO 🧮")
 
 # Layout de dos columnas para la bienvenida
@@ -65,6 +60,7 @@ with col2:
 
 st.markdown("---")
 st.caption("Matrix Master PRO - Desarrollado para el aprendizaje interactivo de Álgebra Lineal.")
+
 
 
 
