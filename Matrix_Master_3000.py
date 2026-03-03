@@ -12,13 +12,25 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* Oculta el botón de 'Deploy' / GitHub de la barra superior */
+    /* 1. Oculta toda la barra superior donde está el botón de GitHub y el de Deploy */
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+
+    /* 2. Oculta el footer (Hecho con Streamlit) */
+    footer {
+        visibility: hidden;
+    }
+
+    /* 3. Ajusta el margen superior para que el contenido no quede pegado arriba al quitar el header */
+    .block-container {
+        padding-top: 2rem !important;
+    }
+    
+    /* 4. Oculta específicamente el botón de GitHub si llegara a filtrarse */
     .stAppDeployButton {
         display: none !important;
     }
-    
-    /* Oculta el enlace 'View source' que a veces aparece en el menú */
-    footer {visibility: hidden;}
     </style>
     """,
     unsafe_allow_html=True
@@ -60,6 +72,7 @@ with col2:
 
 st.markdown("---")
 st.caption("Matrix Master PRO - Desarrollado para el aprendizaje interactivo de Álgebra Lineal.")
+
 
 
 
