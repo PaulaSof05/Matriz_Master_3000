@@ -49,7 +49,7 @@ with st.sidebar:
     n_eqs = st.number_input("Ecuaciones:", 1, 6, 3, key="n_eqs")
     
     st.markdown("---")
-    dif = st.select_slider("Dificultad Aleatoria:", ["Fácil", "Medio", "Difícil"], "Fácil")
+    dif = st.select_slider("Dificultad:", ["Fácil", "Medio", "Difícil"], "Fácil")
     rango = st.slider("Rango de números:", -15, 15, (-9, 9))
 
     if st.button("🎲 Generar Aleatorio"):
