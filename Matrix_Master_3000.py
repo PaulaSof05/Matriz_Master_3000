@@ -152,39 +152,4 @@ if st.button("🚀 Resolver Paso a Paso", use_container_width=True):
                 st.info("Nota: No se requiere Nivel 3 (Solución única).")
 
     except Exception as e:
-        st.error(f"Error en los datos: Asegúrate de ingresar números o fracciones válidas. Detalle: {e}")col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.markdown("""
-    ### 🛠️ Herramientas Disponibles:
-    Selecciona una opción en el menú de la izquierda para comenzar:
-    
-    1. **🚀 Sistemas de Ecuaciones:** Resolución paso a paso.
-    2. **➕ Operaciones Básicas:** Suma y resta de matrices de cualquier dimensión.
-    3. **✖️ Multiplicación:** Producto matricial (A × B) con validación de dimensiones.
-    4. **🔍 Inversa y Determinante:** Análisis completo de matrices cuadradas.
-    5. **📊 Rango y Transpuesta:** Calcula el rango, la transpuesta y la forma escalonada (RREF).
-    
-    ### 💡 ¿Cómo funciona?
-    * **Entrada de datos:** Puedes insertar un sistema de ecuaciones manualmente.
-    * **Generación aleatoria:** Usa los controles en el panel lateral para crear ejercicios nuevos al instante.
-    * **Cálculo Exacto:** Los resultados se muestran como fracciones exactas, evitando errores decimales.
-    """)
-
-with col2:
-    st.info("""
-    **Nota de Uso:**
-    Esta aplicación está diseñada para estudiantes de álgebra lineal. 
-    Se usa el metodo y algoritmo de Gauss Jordan, por lo que puede usar otro procedimiento y llegar al mismo resultado.
-    """)
-    
-    # Un pequeño toque visual
-    st.success("✅ Estado del Sistema: Listo para operar.")
-
-st.markdown("---")
-st.caption("Matrix Master PRO - Saludos profe Tlatoanic ;3.")
-
-
-
-
-
+        st.error(f"Error en los datos: Asegúrate de ingresar números o fracciones válidas. Detalle: {e}")
