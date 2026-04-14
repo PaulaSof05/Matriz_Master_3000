@@ -3,146 +3,143 @@ import pandas as pd
 import sympy as sp
 import numpy as np
 
+# Configuración de página
 st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 
-# --- ESTILOS ---
+# --- ESTILOS CSS ---
 st.markdown("""
     <style>
-    .math-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-    .math-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-    .op-label { color: #ff4b4b; font-weight: bold; }
+    .aritmetica-table { width: 100%; border: 2px solid #4CAF50; border-collapse: collapse; margin-bottom: 20px; }
+    .aritmetica-table td { border: 1px solid #ddd; padding: 10px; text-align: center; font-family: monospace; }
+    .header-row { background-color: #f2f2f2; font-weight: bold; }
+    .res-row { background-color: #e8f5e9; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNCIONES DE CÁLCULO Y ARITMÉTICA VISUAL ---
-def mostrar_operacion_aritmetica(fila_orig, fila_pivote, factor, fila_res, label):
-    """Genera una tabla visual de la operación entre renglones"""
-    with st.expander(f"🔍 Ver aritmética: {label}", expanded=False):
-        col1, col2 = st.columns([1, 4])
-        with col2:
-            html = "<table class='math-table'>"
-            # Fila original
-            html += f"<tr><td>$R_{{dest}}$ anterior</td>" + "".join([f"<td>{sp.latex(x)}</td>" for x in fila_orig]) + "</tr>"
-            # Fila pivote multiplicada
-            op_pivote = [-factor * x for x in fila_pivote]
-            html += f"<tr><td>$-({sp.latex(factor)}) \\times R_{{pivote}}$</td>" + "".join([f"<td>{sp.latex(x)}</td>" for x in op_pivote]) + "</tr>"
-            # Resultado
-            html += f"<tr style='border-top: 2px solid black;'><td><b>Resultado</b></td>" + "".join([f"<td><b>{sp.latex(x)}</b></td>" for x in fila_res]) + "</tr>"
-            html += "</table>"
-            st.write(html, unsafe_allow_html=True)
+# --- FUNCIONES DE ARITMÉTICA VISUAL ---
+def tabla_aritmetica(fila_obj, fila_piv, factor, resultado, operacion):
+    """Genera la tabla de operaciones que pidió el profe"""
+    st.write(f"**Operación detallada:** {operacion}")
+    html = f"""
+    <table class="aritmetica-table">
+        <tr class="header-row"><td>Componente</td>{"".join([f"<td>Col {i+1}</td>" for i in range(len(fila_obj))])}</tr>
+        <tr><td>Renglón Objetivo</td>{"".join([f"<td>{sp.latex(x)}</td>" for x in fila_obj])}</tr>
+        <tr><td>-({sp.latex(factor)}) × R_pivote</td>{"".join([f"<td>{sp.latex(-factor*x)}</td>" for x in fila_piv])}</tr>
+        <tr class="res-row"><td>Nuevo Renglón</td>{"".join([f"<td>{sp.latex(x)}</td>" for x in resultado])}</tr>
+    </table>
+    """
+    st.write(html, unsafe_allow_html=True)
 
-def resolver(M, modo="gauss"):
-    n, m_cols = M.shape
-    pasos = 0
-    det_factor = 1
-    M_trabajo = M.copy()
-
+# --- LÓGICA DE GAUSS-JORDAN ---
+def resolver_matriz(matriz, modo="gauss"):
+    M = matriz.copy()
+    n, cols = M.shape
     st.write(f"## 🛠️ Procedimiento: {modo.upper()}")
-    st.latex(sp.latex(M_trabajo))
-
-    for i in range(min(n, m_cols)):
+    
+    # Determinante por Gauss (multiplicación de diagonal)
+    det_acumulado = 1
+    
+    for i in range(min(n, cols)):
         # 1. Pivoteo
-        if M_trabajo[i, i] == 0:
-            for j in range(i + 1, n):
-                if M_trabajo[j, i] != 0:
-                    M_trabajo[i, :], M_trabajo[j, :] = M_trabajo[j, :], M_trabajo[i, :]
-                    det_factor *= -1
-                    st.write(f"🔄 **Paso {pasos+1}:** Intercambio $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$")
-                    st.latex(sp.latex(M_trabajo))
+        if M[i, i] == 0:
+            for k in range(i + 1, n):
+                if M[k, i] != 0:
+                    M[i, :], M[k, :] = M[k, :], M[i, :]
+                    det_acumulado *= -1
+                    st.write(f"🔄 Intercambio $R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
+                    st.latex(sp.latex(M))
                     break
-        
-        pivote = M_trabajo[i, i]
+
+        pivote = M[i, i]
         if pivote == 0: continue
 
-        # 2. Normalización (Hacer 1 el pivote)
-        if pivote != 1 and modo != "determinante":
+        # 2. Normalización (Excepto para determinante puro para evitar fracciones feas antes de tiempo)
+        if modo != "determinante" and pivote != 1:
             factor_inv = sp.Rational(1, pivote)
-            fila_ant = M_trabajo[i, :].tolist()[0]
-            M_trabajo[i, :] = M_trabajo[i, :] * factor_inv
-            st.write(f"🎯 **Paso {pasos+2}:** Normalizar fila $R_{{ {i+1} }} = R_{{ {i+1} }} / {sp.latex(pivote)}$")
-            st.latex(sp.latex(M_trabajo))
-        
+            M[i, :] = M[i, :] * factor_inv
+            st.write(f"🎯 Hacer 1 el pivote: $R_{{{i+1}}} \\to R_{{{i+1}}} / {sp.latex(pivote)}$")
+            st.latex(sp.latex(M))
+
         # 3. Eliminación
         for j in range(n):
             if i != j:
-                if modo == "determinante" and j < i: continue # Solo ceros abajo para det
+                # Si es determinante, solo hacemos ceros abajo (triangular)
+                if modo == "determinante" and j < i: continue
                 
-                factor = M_trabajo[j, i]
+                factor = M[j, i]
                 if factor != 0:
-                    fila_dest_ant = M_trabajo[j, :].tolist()[0]
-                    fila_pivote = M_trabajo[i, :].tolist()[0]
+                    f_obj = M[j, :].tolist()[0]
+                    f_piv = M[i, :].tolist()[0]
+                    M[j, :] = M[j, :] - factor * M[i, :]
                     
-                    M_trabajo[j, :] = M_aug[j, :] - factor * M_trabajo[i, :]
-                    
-                    st.write(f"⚡ **Paso {pasos+3}:** $R_{{ {j+1} }} \\to R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }}$")
-                    mostrar_operacion_aritmetica(fila_dest_ant, fila_pivote, factor, M_trabajo[j, :].tolist()[0], f"R{j+1}")
-                    st.latex(sp.latex(M_trabajo))
-        pasos += 3
-
+                    tabla_aritmetica(f_obj, f_piv, factor, M[j, :].tolist()[0], 
+                                     f"$R_{{{j+1}}} \\to R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}}$")
+                    st.latex(sp.latex(M))
+    
     if modo == "determinante":
-        diagonal = [M_trabajo[i,i] for i in range(n)]
-        det_final = det_factor * np.prod(diagonal)
-        st.write("### 🏁 Resultado")
-        st.latex(rf"|A| = {sp.latex(det_factor)} \times ({' \times '.join([sp.latex(x) for x in diagonal])}) = {sp.latex(det_final)}")
+        diag = [M[i,i] for i in range(n)]
+        res_det = det_acumulado * np.prod(diag)
+        st.write(f"### 🏁 Determinante = {sp.latex(det_acumulado)} × ({' × '.join([sp.latex(x) for x in diag])}) = **{sp.latex(res_det)}**")
     else:
-        st.write("### 🏁 Resultado Final")
-        st.latex(sp.latex(M_trabajo))
+        st.write("### 🏁 Resultado Final:")
+        st.latex(sp.latex(M))
 
-# --- INTERFAZ PRINCIPAL ---
+# --- INTERFAZ ---
 st.title("🚀 Matrix Master 3000")
-st.markdown("---")
 
-col_input, col_tools = st.columns([2, 1])
+# Panel Superior: Entrada "Infinita" a prueba de errores
+st.subheader("⌨️ Dibujar Matriz")
+st.info("💡 Cada vez que escribas valores en la última fila o columna, la tabla crecerá sola. ¡A prueba de tontos!")
 
-with col_input:
-    st.subheader("⌨️ Entrada Inteligente")
-    txt_input = st.text_area(
-        "Escribe tu matriz:",
-        placeholder="Ejemplo:\n1 2 3\n4 5 6\n7 8 9",
-        help="Espacio = Nueva columna, Enter = Nueva fila. Puedes usar comas también.",
-        height=150
-    )
+if 'matriz_dinamica' not in st.session_state:
+    st.session_state.matriz_dinamica = pd.DataFrame([[""]], columns=[" "])
+
+# Editor elástico
+df_usuario = st.data_editor(
+    st.session_state.matriz_dinamica,
+    num_rows="dynamic",
+    use_container_width=True,
+    hide_index=True,
+    key="editor_reactivo"
+)
+st.session_state.matriz_dinamica = df_usuario
+
+# Layout: Herramientas a la derecha
+col_proc, col_opciones = st.columns([3, 1])
+
+with col_opciones:
+    st.markdown("### ⚙️ Acciones")
+    accion = st.selectbox("Selecciona operación:", 
+                          ["Gauss-Jordan", "Inversa", "Determinante"])
     
-    # Procesar entrada en tiempo real
-    try:
-        lineas = txt_input.strip().split('\n')
-        matriz_raw = [linea.replace(',', ' ').split() for linea in lineas if linea.strip()]
-        if matriz_raw:
-            M_aug = sp.Matrix([[sp.Rational(x) for x in fila] for fila in matriz_raw])
-            st.write("**Vista previa de tu matriz:**")
-            st.latex(sp.latex(M_aug))
-        else:
-            M_aug = None
-    except:
-        st.error("⚠️ Formato incorrecto. Asegúrate de usar solo números.")
-        M_aug = None
+    procesar = st.button("🚀 CALCULAR", use_container_width=True, type="primary")
 
-with col_tools:
-    st.subheader("🛠️ Acciones")
-    opcion = st.radio("¿Qué deseas obtener?", ["Gauss-Jordan (Sistema)", "Matriz Inversa", "Determinante"])
-    
-    btn_resolver = st.button("🚀 CALCULAR", use_container_width=True, type="primary")
-
-st.markdown("---")
-
-# --- EJECUCIÓN ---
-if btn_resolver and M_aug is not None:
-    n, m = M_aug.shape
-    
-    if opcion == "Gauss-Jordan (Sistema)":
-        resolver(M_aug, modo="gauss")
-        
-    elif opcion == "Matriz Inversa":
-        if n != m:
-            st.error("❌ La matriz debe ser cuadrada para tener inversa.")
-        else:
-            identidad = sp.eye(n)
-            M_inv_prep = M_aug.row_join(identidad)
-            st.write("Se añade la matriz identidad a la derecha:")
-            resolver(M_inv_prep, modo="inversa")
+with col_proc:
+    if procesar:
+        try:
+            # Limpiar datos y detectar m x n
+            df_nans = df_usuario.replace(r'^\s*$', np.nan, regex=True)
+            cuadro = df_nans.dropna(how='all').dropna(axis=1, how='all')
             
-    elif opcion == "Determinante":
-        if n != m:
-            st.error("❌ El determinante solo existe en matrices cuadradas.")
-        else:
-            resolver(M_aug, modo="determinante")
+            # Convertir a Sympy
+            datos = []
+            for _, r in cuadro.iterrows():
+                datos.append([sp.Rational(str(v)) if pd.notnull(v) else 0 for v in r])
+            
+            M_final = sp.Matrix(datos)
+            
+            if accion == "Gauss-Jordan":
+                resolver_matriz(M_final, "gauss")
+            elif accion == "Inversa":
+                if M_final.shape[0] != M_final.shape[1]:
+                    st.error("La matriz debe ser cuadrada.")
+                else:
+                    resolver_matriz(M_final.row_join(sp.eye(M_final.shape[0])), "inversa")
+            elif accion == "Determinante":
+                if M_final.shape[0] != M_final.shape[1]:
+                    st.error("La matriz debe ser cuadrada.")
+                else:
+                    resolver_matriz(M_final, "determinante")
+                    
+        except Exception as e:
+            st.error(f"Error en los datos: Revisa que no haya letras.")
