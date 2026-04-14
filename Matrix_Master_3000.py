@@ -9,19 +9,26 @@ st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 # --- ESTILOS CSS PERSONALIZADOS ---
 st.markdown("""
     <style>
-    .main { background-color: #f5f7f9; }
-    .stTable { background-color: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    /* Forzar que la tabla detectada tenga texto oscuro y fondo claro para que se vea */
+    .stTable {
+        background-color: #f8f9fa !important;
+        color: #1f1f1f !important;
+        border-radius: 5px;
+    }
+    .stTable td, .stTable th {
+        color: #1f1f1f !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    /* Estilo para las tablas de aritmética */
     .aritmetica-container {
         background-color: #ffffff;
         border-left: 5px solid #ff4b4b;
         padding: 15px;
         margin: 10px 0;
-        border-radius: 5px;
+        border: 1px solid #ddd;
     }
-    .step-header { color: #1f77b4; font-weight: bold; border-bottom: 2px solid #1f77b4; }
     </style>
     """, unsafe_allow_html=True)
-
 # --- FUNCIONES DE CÁLCULO ---
 def tabla_paso_a_paso(f_obj, f_piv, factor, f_res, texto):
     """Genera la tabla de aritmética que el profe quiere ver"""
@@ -112,16 +119,20 @@ with col_izq:
     if raw_text:
         try:
             lineas = [l.split() for l in raw_text.strip().split('\n') if l.strip()]
-            max_c = max(len(l) for l in lineas)
-            # Rellenar con ceros si falta algo (a prueba de tontos)
-            matriz_final = [l + ["0"]*(max_c - len(l)) for l in lineas]
-            
-            st.write("### 📊 Matriz Detectada")
-            st.table(pd.DataFrame(matriz_final)) # Aquí está tu tabla visual
-            
-            M_ready = sp.Matrix([[sp.Rational(x) for x in fila] for fila in matriz_final])
-        except:
-            st.error("⚠️ Solo se permiten números y espacios.")
+            if lineas:
+                max_c = max(len(l) for l in lineas)
+                matriz_final = [l + [""]*(max_c - len(l)) for l in lineas] # "" en lugar de "0" para que se vea limpio
+                
+                st.write("### 📊 Matriz Detectada")
+                # Usamos un contenedor para aplicar el estilo
+                st.table(pd.DataFrame(matriz_final)) 
+                
+                # Convertimos a Sympy para los cálculos (aquí sí los vacíos son 0)
+                M_ready = sp.Matrix([[sp.Rational(x) if x != "" else 0 for x in fila] for fila in matriz_final])
+            else:
+                M_ready = None
+        except Exception as e:
+            st.error(f"⚠️ Revisa los datos. (Error: {e})")
             M_ready = None
     else:
         M_ready = None
