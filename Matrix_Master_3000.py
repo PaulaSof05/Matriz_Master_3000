@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 import sympy as sp
-import random
+import numpy as np
 
-# Configuración de pantalla completa
+# Configuración de pantalla
 st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 
 # --- ALGORITMO GAUSS-JORDAN (CORE) ---
@@ -45,59 +45,66 @@ def resolver_gauss_jordan(M_aug):
 st.title("🚀 Matrix Master 3000")
 st.markdown("---")
 
-# --- ENTRADA DINÁMICA (Detección automática de m x n) ---
-st.write("### ⌨️ Entrada de Datos: Matriz Aumentada")
-st.info("Pega tu matriz aquí. Separa los números de una fila con espacios o comas, y usa un salto de línea para cada fila nueva. La última columna será tomada como el vector de resultados (b).")
+# --- INTERFAZ TIPO EXCEL (Infinita y Dinámica) ---
+st.write("### ⌨️ Editor de Matriz Aumentada")
+st.info("💡 **Tips:** Haz doble clic en una celda para editar. Usa el botón **(+)** al final de las filas o columnas para expandir la tabla. El sistema detectará el tamaño automáticamente.")
 
-# Área de texto para insertar la matriz de forma indefinida
-raw_data = st.text_area("Inserta los datos de la matriz:", 
-                        placeholder="Ejemplo para 3x3:\n1 2 3 9\n0 1 4 10\n5 6 0 1",
-                        height=200)
+# Inicializamos una tabla vacía de 3x4 en el estado de sesión si no existe
+if 'excel_data' not in st.session_state:
+    st.session_state.excel_data = pd.DataFrame(
+        [["" for _ in range(4)] for _ in range(3)],
+        columns=[f"C{i+1}" for i in range(4)]
+    )
 
-# --- BOTÓN DE ACCIÓN ---
-if st.button("🚀 Detectar y Resolver", use_container_width=True, type="primary"):
-    if not raw_data.strip():
-        st.warning("Por favor, ingresa algunos datos primero.")
-    else:
-        try:
-            # Procesamiento de texto para detectar dimensiones
-            filas_texto = raw_data.strip().split('\n')
+# Editor de datos con permisos para agregar filas y columnas
+df_editado = st.data_editor(
+    st.session_state.excel_data,
+    num_rows="dynamic",      # Permite agregar filas infinitas
+    use_container_width=True,
+    hide_index=False,
+    column_config={f"C{i+1}": st.column_config.TextColumn(width="small") for i in range(50)} 
+)
+
+# Guardar en session_state
+st.session_state.excel_data = df_editado
+
+# --- PROCESAMIENTO Y DETECCIÓN ---
+if st.button("🚀 Resolver Matriz Detectada", use_container_width=True, type="primary"):
+    try:
+        # 1. Limpiar datos: Convertir a strings, quitar espacios y filtrar filas/columnas vacías
+        # Reemplazamos celdas vacías por None para poder dropearlas
+        df_limpio = df_editado.replace(r'^\s*$', np.nan, regex=True).dropna(how='all').dropna(axis=1, how='all')
+        
+        if df_limpio.empty:
+            st.warning("La tabla está vacía. Por favor, ingresa los coeficientes.")
+        else:
+            # 2. Convertir a matriz de Sympy
             matriz_datos = []
+            for _, row in df_limpio.iterrows():
+                # Si una celda individual está vacía en medio de datos, la tratamos como 0
+                fila = [sp.Rational(str(val)) if pd.notnull(val) else sp.Integer(0) for val in row]
+                matriz_datos.append(fila)
             
-            for fila in filas_texto:
-                # Reemplazar comas por espacios y dividir
-                valores = fila.replace(',', ' ').split()
-                if valores:
-                    matriz_datos.append([sp.Rational(v) for v in valores])
+            M_aug = sp.Matrix(matriz_datos)
+            n_eqs, n_tot = M_aug.shape
+            n_vars = n_tot - 1
             
-            # Validar que todas las filas tengan el mismo tamaño
-            if not all(len(f) == len(matriz_datos[0]) for f in matriz_datos):
-                st.error("Error: Todas las filas deben tener la misma cantidad de números.")
+            st.success(f"✅ Sistema detectado: **{n_eqs} ecuaciones** con **{n_vars} variables**.")
+            
+            # Ejecución del algoritmo
+            resolver_gauss_jordan(M_aug)
+            
+            # --- RESULTADOS ---
+            st.markdown("---")
+            st.subheader("💡 Solución")
+            vars_sym = [sp.symbols(f'x_{i+1}') for i in range(n_vars)]
+            sols = sp.solve_linear_system(M_aug, *vars_sym)
+
+            if sols is None:
+                st.error(r"Sistema Inconsistente: $\{ \emptyset \}$")
             else:
-                M_aug = sp.Matrix(matriz_datos)
-                n_eqs, n_tot = M_aug.shape
-                n_vars = n_tot - 1
-                
-                st.success(f"✅ Matriz detectada: **{n_eqs} filas** x **{n_tot} columnas** ({n_vars} variables).")
-                
-                # Ejecución del algoritmo
-                resolver_gauss_jordan(M_aug)
-                
-                # --- RESULTADOS ---
-                st.markdown("---")
-                st.subheader("💡 Solución")
-                
-                vars_sym = [sp.symbols(f'x_{i+1}') for i in range(n_vars)]
-                sols = sp.solve_linear_system(M_aug, *vars_sym)
+                lista_soluciones = [sols.get(v, v) for v in vars_sym]
+                st.latex(rf"S = \{{ ({','.join([sp.latex(v) for v in vars_sym])}) : ({','.join([sp.latex(s) for s in lista_soluciones])}) \}}")
 
-                if sols is None:
-                    st.error(r"Sistema Inconsistente: $\{ \emptyset \}$")
-                else:
-                    lista_soluciones = [sols.get(v, v) for v in vars_sym]
-                    st.markdown("**Nivel 1:**")
-                    st.latex(rf"S = \{{ ({','.join([sp.latex(v) for v in vars_sym])}) : ({','.join([sp.latex(s) for s in lista_soluciones])}) \}}")
-                    st.markdown("**Nivel 2:**")
-                    st.latex(rf"S = \{{ {','.join([sp.latex(s) for s in lista_soluciones])} \}}")
-
-        except Exception as e:
-            st.error(f"⚠️ Error al procesar los datos. Asegúrate de usar solo números y que el formato sea correcto.")
+    except Exception as e:
+        st.error(f"⚠️ Error: Asegúrate de que todas las celdas contengan números o fracciones válidas.")
