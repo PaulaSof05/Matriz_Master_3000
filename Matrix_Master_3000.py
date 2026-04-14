@@ -3,18 +3,8 @@ import pandas as pd
 import sympy as sp
 import numpy as np
 
-# Configuración de página ancha
+# Configuración de pantalla
 st.set_page_config(page_title="Matrix Master 3000", layout="wide")
-
-# --- ESTILO CSS PARA SIMULAR EXCEL ---
-st.markdown("""
-    <style>
-    /* Hace que el editor de datos se vea más como una hoja de cálculo */
-    .stDataEditor {
-        width: 100%;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
 # --- ALGORITMO GAUSS-JORDAN ---
 def resolver_gauss_jordan(M_aug):
@@ -49,65 +39,66 @@ def resolver_gauss_jordan(M_aug):
     return M_aug
 
 st.title("🚀 Matrix Master 3000")
-st.subheader("📊 Hoja de Trabajo Infinita")
-st.write("Inserta tu matriz en cualquier lugar. El sistema detectará el bloque de datos automáticamente.")
+st.markdown("---")
 
-# --- GENERACIÓN DE LIENZO "INFINITO" ---
-# Creamos 26 columnas (A-Z) y 100 filas iniciales (pueden ser más)
-columnas = [chr(65 + i) for i in range(26)]
+# --- LIENZO INFINITO SIN NOMBRES ---
+st.subheader("⌨️ Cuadrícula de Trabajo Limpia")
+st.info("Escribe tu matriz en cualquier parte de la cuadrícula blanca. No hay límites ni etiquetas.")
 
-if 'hoja_infinita' not in st.session_state:
-    # Llenamos con strings vacíos para que el usuario pueda escribir de inmediato
-    datos_vacion = [["" for _ in range(26)] for _ in range(100)]
-    st.session_state.hoja_infinita = pd.DataFrame(datos_vacion, columns=columnas)
+# Inicializamos una hoja grande (50x50 por ejemplo)
+if 'hoja_limpia' not in st.session_state:
+    # Creamos un DataFrame sin nombres de columnas específicos
+    datos = [["" for _ in range(50)] for _ in range(50)]
+    st.session_state.hoja_limpia = pd.DataFrame(datos)
 
-# Editor de datos configurado para ser un lienzo
+# Editor de datos configurado para ocultar TODO
 df_usuario = st.data_editor(
-    st.session_state.hoja_infinita,
+    st.session_state.hoja_limpia,
     use_container_width=True,
-    hide_index=False, # Muestra los números de fila como en Excel
-    num_rows="fixed",  # Al ser 100, se siente infinito al hacer scroll
-    key="canvas_excel"
+    hide_index=True,          # OCULTA los números de fila (1, 2, 3...)
+    column_config={
+        str(i): st.column_config.Column(label="", width="small") for i in range(50)
+    },                        # OCULTA los nombres de columnas (A, B, C...)
+    num_rows="dynamic",       # Permite seguir bajando infinitamente
+    key="canvas_limpio"
 )
 
-# --- DETECCIÓN AUTOMÁTICA ---
-if st.button("🚀 Resolver Matriz Detectada", use_container_width=True, type="primary"):
+# Guardar estado
+st.session_state.hoja_limpia = df_usuario
+
+# --- DETECCIÓN Y PROCESAMIENTO ---
+if st.button("🚀 Resolver Matriz", use_container_width=True, type="primary"):
     try:
-        # 1. Convertir todo a string, limpiar espacios y marcar vacíos como NaN
+        # Convertir a texto y limpiar
         df_limpio = df_usuario.applymap(lambda x: str(x).strip() if x else "").replace('', np.nan)
         
-        # 2. EL RECORTE MÁGICO:
-        # Buscamos el rectángulo más pequeño que contenga todos los datos.
-        # Esto elimina todas las filas/columnas vacías que sobran en el lienzo de 100x26.
-        cuadro_datos = df_limpio.dropna(how='all').dropna(axis=1, how='all')
+        # El "Recorte Mágico" para encontrar el bloque de datos del usuario
+        cuadro = df_limpio.dropna(how='all').dropna(axis=1, how='all')
         
-        if cuadro_datos.empty:
-            st.warning("⚠️ No se encontró ninguna matriz. Escribe algo en las celdas.")
+        if cuadro.empty:
+            st.warning("⚠️ La cuadrícula está vacía.")
         else:
-            # 3. Transformar a Matriz Matemática
-            filas_finales = []
-            for _, fila_pandas in cuadro_datos.iterrows():
-                # Celdas vacías dentro del rango detectado se vuelven 0
-                fila_math = [sp.Rational(str(val)) if pd.notnull(val) else sp.Integer(0) for val in fila_pandas]
-                filas_finales.append(fila_math)
+            matriz_final = []
+            for _, fila_pd in cuadro.iterrows():
+                # Huecos internos se asumen como 0
+                fila_math = [sp.Rational(str(v)) if pd.notnull(v) else sp.Integer(0) for v in fila_pd]
+                matriz_final.append(fila_math)
             
-            M_aug = sp.Matrix(filas_finales)
+            M_aug = sp.Matrix(matriz_final)
+            st.success(f"✅ Matriz detectada de {M_aug.shape[0]}x{M_aug.shape[1]}")
             
-            # 4. Mostrar dimensiones detectadas
-            st.success(f"✅ Matriz detectada: {M_aug.shape[0]}x{M_aug.shape[1]}")
-            
-            # 5. Ejecutar procedimiento
+            # Procedimiento
             resolver_gauss_jordan(M_aug)
             
-            # --- RESULTADO ---
+            # Resultado final
             st.markdown("---")
             vars_sym = [sp.symbols(f'x_{i+1}') for i in range(M_aug.shape[1] - 1)]
             sols = sp.solve_linear_system(M_aug, *vars_sym)
             if sols is not None:
                 res_txt = ",".join([sp.latex(sols.get(v, v)) for v in vars_sym])
-                st.latex(rf"S = \{{ {res_txt} \}}")
+                st.latex(rf"S = \{{ ({res_txt}) \}}")
             else:
-                st.error("El sistema no tiene solución.")
+                st.error("Sistema sin solución.")
 
     except Exception as e:
-        st.error(f"⚠️ Revisa tus datos. Asegúrate de usar solo números. ({e})")
+        st.error(f"⚠️ Error: Ingresa solo números. ({e})")
