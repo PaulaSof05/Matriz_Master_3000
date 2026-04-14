@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import sympy as sp
+import numpy as np
 
-# Configuración de pantalla completa y limpia
+# Configuración de pantalla ancha para simular Excel
 st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 
 # --- ALGORITMO GAUSS-JORDAN (CORE) ---
@@ -44,64 +45,72 @@ def resolver_gauss_jordan(M_aug):
 st.title("🚀 Matrix Master 3000")
 st.markdown("---")
 
-# --- INTERFAZ ABSOLUTAMENTE INDEFINIDA ---
-st.subheader("⌨️ Entrada de Matriz Libre")
-st.info("Copia y pega tus datos desde Excel o escríbelos. No necesitas definir el tamaño; el sistema lo detectará solo.")
+# --- LÓGICA DE EXCEL INFINITO ---
+st.subheader("⌨️ Editor de Matriz (Estilo Excel)")
+st.info("Escribe los números en las celdas. Puedes desplazarte y usar cualquier área de la hoja; el sistema detectará automáticamente tu matriz.")
 
-# El secreto: Un text_area que acepta cualquier cantidad de datos
-# Al ser un área de texto, el usuario puede pegar una matriz de 2x2 o de 100x100 sin restricciones.
-input_data = st.text_area(
-    "Pega aquí la matriz aumentada (incluyendo el vector b):",
-    height=250,
-    placeholder="1 0 2 9\n0 1 -1 4\n3 2 0 1",
-    help="Usa espacios o tabuladores entre números y saltos de línea para las filas."
+# Creamos una hoja "infinita" inicial (ej. 50 filas x 26 columnas)
+# Usamos letras para las columnas como en Excel (A, B, C...)
+columnas_excel = [chr(65 + i) for i in range(26)] 
+
+if 'hoja_infinita' not in st.session_state:
+    # Inicializamos con strings vacíos
+    data = [["" for _ in range(26)] for _ in range(50)]
+    st.session_state.hoja_infinita = pd.DataFrame(data, columns=columnas_excel)
+
+# El Data Editor permite la experiencia de Excel
+# num_rows="dynamic" permite añadir más filas si 50 no fueran suficientes
+df_usuario = st.data_editor(
+    st.session_state.hoja_infinita,
+    use_container_width=True,
+    num_rows="dynamic", 
+    hide_index=False, # Mostramos números de fila
+    key="excel_editor"
 )
 
-# --- PROCESAMIENTO DINÁMICO ---
-if st.button("🚀 Procesar y Resolver", use_container_width=True, type="primary"):
-    if not input_data.strip():
-        st.error("⚠️ La entrada está vacía. Por favor ingresa datos.")
-    else:
-        try:
-            # 1. Convertir el texto en una lista de listas (Matriz)
-            filas = input_data.strip().split('\n')
-            matriz_cruda = []
-            for f in filas:
-                # Detectamos espacios o tabs como separadores
-                valores = f.replace(',', ' ').split()
-                if valores:
-                    matriz_cruda.append([sp.Rational(v) for v in valores])
+# Guardar progreso
+st.session_state.hoja_infinita = df_usuario
+
+# --- PROCESAMIENTO INTELIGENTE ---
+if st.button("🚀 Resolver Matriz Detectada", use_container_width=True, type="primary"):
+    try:
+        # 1. Limpieza radical: eliminar espacios y convertir vacíos en NaN
+        df_limpio = df_usuario.replace(r'^\s*$', np.nan, regex=True)
+        
+        # 2. DETECCIÓN AUTOMÁTICA DEL ÁREA OCUPADA
+        # Eliminamos filas y columnas que estén totalmente vacías
+        # Esto "recorta" la hoja de cálculo al cuadro exacto donde el usuario escribió
+        cuadro_datos = df_limpio.dropna(how='all').dropna(axis=1, how='all')
+        
+        if cuadro_datos.empty:
+            st.warning("⚠️ No se detectaron datos. Escribe los números en la tabla superior.")
+        else:
+            # 3. Convertir el cuadro detectado a Sympy (Matriz Aumentada)
+            matriz_final = []
+            for _, fila_pandas in cuadro_datos.iterrows():
+                # Si hay un hueco vacío en medio de los datos, lo tratamos como 0
+                fila_math = [sp.Rational(str(val)) if pd.notnull(val) else sp.Integer(0) for val in fila_pandas]
+                matriz_final.append(fila_math)
             
-            # 2. Validar consistencia de columnas
-            if not all(len(f) == len(matriz_cruda[0]) for f in matriz_cruda):
-                st.error("❌ Error: No todas las filas tienen el mismo número de columnas. Revisa tus datos.")
+            M_aug = sp.Matrix(matriz_final)
+            filas, columnas = M_aug.shape
+            
+            st.success(f"✅ **Matriz detectada:** {filas} ecuaciones con {columnas-1} incógnitas.")
+            
+            # 4. Ejecutar Gauss-Jordan
+            resolver_gauss_jordan(M_aug)
+            
+            # --- RESULTADO FINAL ---
+            st.markdown("---")
+            st.subheader("💡 Solución")
+            vars_sym = [sp.symbols(f'x_{i+1}') for i in range(columnas - 1)]
+            sols = sp.solve_linear_system(M_aug, *vars_sym)
+
+            if sols is None:
+                st.error(r"Sistema Inconsistente: $\{ \emptyset \}$")
             else:
-                M_aug = sp.Matrix(matriz_cruda)
-                m, n_total = M_aug.shape
-                n_vars = n_total - 1
-                
-                # Mostrar al usuario qué fue lo que la máquina detectó
-                st.success(f"✅ **Detección exitosa:** Matriz de {m}x{n_total} ({n_vars} incógnitas).")
-                
-                # 3. Visualización previa en formato tabla para que el usuario esté seguro
-                with st.expander("Ver tabla detectada", expanded=False):
-                    df_preview = pd.DataFrame(matriz_cruda).astype(str)
-                    st.table(df_preview)
+                lista_s = [sols.get(v, v) for v in vars_sym]
+                st.latex(rf"S = \{{ ({','.join([sp.latex(v) for v in vars_sym])}) : ({','.join([sp.latex(s) for s in lista_s])}) \}}")
 
-                # 4. Resolver
-                resolver_gauss_jordan(M_aug)
-                
-                # --- RESULTADOS FINALES ---
-                st.markdown("---")
-                st.subheader("💡 Resultado Final")
-                vars_sym = [sp.symbols(f'x_{i+1}') for i in range(n_vars)]
-                sols = sp.solve_linear_system(M_aug, *vars_sym)
-
-                if sols is None:
-                    st.error(r"Sistema Inconsistente: $\{ \emptyset \}$")
-                else:
-                    lista_soluciones = [sols.get(v, v) for v in vars_sym]
-                    st.latex(rf"S = \{{ ({','.join([sp.latex(v) for v in vars_sym])}) : ({','.join([sp.latex(s) for s in lista_soluciones])}) \}}")
-
-        except Exception as e:
-            st.error(f"⚠️ Error de formato: Asegúrate de ingresar solo números o fracciones. (Detalle: {e})")
+    except Exception as e:
+        st.error(f"⚠️ Error: Asegúrate de ingresar solo números o fracciones. (Detalle: {e})")
