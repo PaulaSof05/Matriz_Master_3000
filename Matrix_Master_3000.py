@@ -9,7 +9,7 @@ st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 # --- ALGORITMO GAUSS-JORDAN ---
 def resolver_gauss_jordan(M_aug):
     n_eqs, n_cols = M_aug.shape
-    st.write("### 🤖 Procedimiento: Gauss-Jordan")
+    st.write("###Procedimiento: Gauss-Jordan")
     st.latex(sp.latex(M_aug))
     
     for i in range(min(n_eqs, n_cols - 1)):
@@ -18,7 +18,7 @@ def resolver_gauss_jordan(M_aug):
             for j in range(i + 1, n_eqs):
                 if M_aug[j, i] != 0:
                     M_aug[i, :], M_aug[j, :] = M_aug[j, :], M_aug[i, :]
-                    st.write(f"**Operación:** $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$")
+                    st.write(f" $R_{{ {i+1} }} \\leftrightarrow R_{{ {j+1} }}$")
                     st.latex(sp.latex(M_aug))
                     pivote = M_aug[i, i]
                     break
@@ -26,7 +26,7 @@ def resolver_gauss_jordan(M_aug):
         if pivote != 0 and pivote != 1:
             inv = sp.Rational(1, pivote)
             M_aug[i, :] = M_aug[i, :] * inv
-            st.write(f"**Operación:** $({sp.latex(inv)}) R_{{ {i+1} }} \\to R_{{ {i+1} }}$")
+            st.write(f"$({sp.latex(inv)}) R_{{ {i+1} }} \\to R_{{ {i+1} }}$")
             st.latex(sp.latex(M_aug))
         
         for j in range(n_eqs):
@@ -34,13 +34,13 @@ def resolver_gauss_jordan(M_aug):
                 factor = M_aug[j, i]
                 if factor != 0:
                     M_aug[j, :] = M_aug[j, :] - factor * M_aug[i, :]
-                    st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
+                    st.write(f"$R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
                     st.latex(sp.latex(M_aug))
     return M_aug
     
 # --- LIENZO INFINITO SIN NOMBRES ---
-st.subheader("⌨️ Cuadrícula de Trabajo Limpia")
-st.info("Escribe tu matriz en cualquier parte de la cuadrícula blanca. No hay límites ni etiquetas.")
+st.subheader("Ingrese su matriz")
+st.info("Escribe tu matriz en cualquier parte de la cuadrícula.")
 
 # Inicializamos una hoja grande (50x50 por ejemplo)
 if 'hoja_limpia' not in st.session_state:
@@ -64,7 +64,7 @@ df_usuario = st.data_editor(
 st.session_state.hoja_limpia = df_usuario
 
 # --- DETECCIÓN Y PROCESAMIENTO ---
-if st.button("🚀 Resolver Matriz", use_container_width=True, type="primary"):
+if st.button("Resolver Matriz", use_container_width=True, type="primary"):
     try:
         # Convertir a texto y limpiar
         df_limpio = df_usuario.applymap(lambda x: str(x).strip() if x else "").replace('', np.nan)
@@ -73,7 +73,7 @@ if st.button("🚀 Resolver Matriz", use_container_width=True, type="primary"):
         cuadro = df_limpio.dropna(how='all').dropna(axis=1, how='all')
         
         if cuadro.empty:
-            st.warning("⚠️ La cuadrícula está vacía.")
+            st.warning("La cuadrícula está vacía.")
         else:
             matriz_final = []
             for _, fila_pd in cuadro.iterrows():
