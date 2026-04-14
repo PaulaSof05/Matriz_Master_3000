@@ -37,10 +37,7 @@ def resolver_gauss_jordan(M_aug):
                     st.write(f"**Operación:** $R_{{ {j+1} }} - ({sp.latex(factor)})R_{{ {i+1} }} \\to R_{{ {j+1} }}$")
                     st.latex(sp.latex(M_aug))
     return M_aug
-
-st.title("🚀 Matrix Master 3000")
-st.markdown("---")
-
+    
 # --- LIENZO INFINITO SIN NOMBRES ---
 st.subheader("⌨️ Cuadrícula de Trabajo Limpia")
 st.info("Escribe tu matriz en cualquier parte de la cuadrícula blanca. No hay límites ni etiquetas.")
