@@ -3,36 +3,38 @@ import pandas as pd
 import sympy as sp
 import numpy as np
 
-# 1. Configuración de página
+# 1. Configuracion de pagina
 st.set_page_config(page_title="Matrices", layout="wide")
 
-# --- CSS PARA ESTILO PROFESIONAL ---
+# --- CSS PARA ESTILO LIMPIO ---
 st.markdown("""
     <style>
-    /* Estilo para que el editor de matriz se vea como cuadrícula matemática */
     [data-testid="stTable"] thead, [data-testid="stDataTable"] thead { display: none; }
     .op-card {
         background-color: #ffffff;
         border-left: 5px solid #d32f2f;
         padding: 15px;
-        margin: 15px 0;
+        margin: 10px 0;
         box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
         color: black;
     }
-    .arit-table { width: 100%; border-collapse: collapse; text-align: center; }
+    .arit-table { width: 100%; border-collapse: collapse; text-align: center; margin-top: 10px; }
     .arit-table td { border: 1px solid #ddd; padding: 8px; }
     .res-row { background-color: #e8f5e9; font-weight: bold; }
+    div.stButton > button { margin-top: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZACIÓN DEL ESTADO ---
+# --- INICIALIZACION DEL ESTADO ---
 if 'df_matriz' not in st.session_state:
     st.session_state.df_matriz = pd.DataFrame()
+if 'go' not in st.session_state:
+    st.session_state.go = False
 
-# --- FUNCIONES DE CÁLCULO ---
+# --- FUNCIONES DE CALCULO ---
 def tabla_aritmetica(f_obj, f_piv, factor, f_res, titulo):
     with st.container():
-        st.markdown(f"<div class='op-card'><b>⚡ {titulo}</b>", unsafe_allow_html=True)
+        st.markdown(f"<div class='op-card'><b>{titulo}</b>", unsafe_allow_html=True)
         cols_head = "".join([f"<td>C{i+1}</td>" for i in range(len(f_obj))])
         html = f"""
         <table class='arit-table'>
@@ -48,29 +50,31 @@ def resolver(M, modo):
     n, cols = M.shape
     M_t = M.copy()
     det_signo = 1
+    
+    st.markdown("### Proceso de Resolucion")
     st.latex(sp.latex(M_t))
 
     for i in range(min(n, cols)):
-        # 1. Pivoteo (Intercambio de renglones si el pivote es 0)
+        # 1. Pivoteo
         if M_t[i, i] == 0:
             for k in range(i + 1, n):
                 if M_t[k, i] != 0:
                     M_t[i, :], M_t[k, :] = M_t[k, :], M_t[i, :]
                     det_signo *= -1
-                    st.info(f"$R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
+                    st.info(f"Intercambio: $R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
                     st.latex(sp.latex(M_t))
                     break
         
         piv = M_t[i, i]
         if piv == 0: continue
 
-        # 2. Normalización del pivote (Hacerlo 1)
+        # 2. Normalizacion
         if modo != "Determinante" and piv != 1:
             M_t[i, :] = sp.simplify(M_t[i, :] / piv)
-            st.write(f"$R_{{{i+1}}} = R_{{{i+1}}} / ({sp.latex(piv)})$")
+            st.write(f"Normalizacion: $R_{{{i+1}}} = R_{{{i+1}}} / ({sp.latex(piv)})$")
             st.latex(sp.latex(M_t))
 
-        # 3. Eliminación de las demás celdas en la columna
+        # 3. Eliminacion
         for j in range(n):
             if i != j:
                 if modo == "Determinante" and j < i: continue
@@ -86,34 +90,35 @@ def resolver(M, modo):
                         f_p, 
                         factor, 
                         M_t[j, :].tolist()[0], 
-                        f"$R_{{{j+1}}} = R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}}$"
+                        f"Operacion: $R_{{{j+1}}} = R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}}$"
                     )
-                    st.latex(sp.latex(M_t))
+                    st.latex(sp.latex(sp.simplify(M_t)))
 
     # --- RESULTADOS FINALES ---
+    st.markdown("---")
     if modo == "Determinante":
         diagonal = [M_t[x, x] for x in range(n)]
         det_final = sp.simplify(det_signo * sp.Mul(*diagonal))
-        st.success(f"### Resultado: **{sp.latex(det_final)}**")
+        st.success(f"### Valor del Determinante: **{sp.latex(det_final)}**")
     
     elif modo == "Inversa":
-        # Extraemos la parte derecha de la matriz aumentada (la inversa)
         M_inversa = M_t[:, n:]
-        st.success("###Matriz Inversa Resultante ($A^{-1}$):")
+        st.success("### Matriz Inversa Resultante ($A^{-1}$):")
         st.latex(sp.latex(M_inversa))
         
     else:
-        st.success("###Resultado Final (Forma Escalonada Reducida):")
+        st.success("### Resultado Final (Gauss-Jordan):")
         st.latex(sp.latex(M_t))
 
 # --- INTERFAZ ---
-st.write("Grupo 2AM2")
+st.markdown("#### Grupo 2AM2")
+st.title("Calculadora de Matrices")
 
-col_input, col_ctrl = st.columns([2, 1])
+col_input, col_ctrl = st.columns([2, 1], gap="large")
 
 with col_input:
-    st.subheader("Entrada por Renglón")
-    input_renglon = st.chat_input("Escribe los números deL reglón (ej: 1 0 3) y presiona Enter")
+    st.markdown("### Entrada de Datos")
+    input_renglon = st.chat_input("Escribe los numeros del renglon (ej: 1 0 3) y presiona Enter")
     
     if input_renglon:
         nueva_fila = input_renglon.split()
@@ -140,7 +145,7 @@ with col_input:
         st.rerun()
 
     if not st.session_state.df_matriz.empty:
-        st.write("### Matriz Detectada (Puedes editar celdas haciendo clic)")
+        st.markdown("##### Matriz Actual (Editable)")
         matriz_editada = st.data_editor(
             st.session_state.df_matriz,
             use_container_width=True,
@@ -149,45 +154,43 @@ with col_input:
         )
         st.session_state.df_matriz = matriz_editada
         
-        if st.button("Borrar Todo"):
+        if st.button("Limpiar Matriz", use_container_width=False):
             st.session_state.df_matriz = pd.DataFrame()
             st.session_state.go = False
             st.rerun()
     else:
-        st.info("Escribe tu primer renglón para empezar.")
+        st.info("Utiliza el cuadro de texto inferior para ingresar los renglones.")
 
 with col_ctrl:
-    
+    st.markdown("### Configuracion")
     metodo = st.radio(
-        "Selecciona la operación:",
+        "Operacion a realizar:",
         ["Gauss-Jordan", "Inversa", "Determinante"],
-        help="Gauss-Jordan funciona para cualquier matriz. Inversa y Determinante requieren matrices cuadradas."
+        help="Gauss-Jordan para cualquier matriz. Inversa y Determinante solo para cuadradas."
     )
     
     if metodo in ["Inversa", "Determinante"]:
-        st.warning("Asegúrate de que la matriz sea cuadrada.")
+        st.caption("Nota: La matriz debe ser cuadrada.")
     
-    if st.button("CALCULAR", use_container_width=True, type="primary"):
+    if st.button("EJECUTAR CALCULO", use_container_width=True, type="primary"):
         if not st.session_state.df_matriz.empty:
             try:
-                # sp.sympify permite manejar números y letras
+                # sp.sympify para manejo simbolico (letras y numeros)
                 M_final = sp.Matrix(st.session_state.df_matriz.values).applyfunc(lambda x: sp.sympify(x))
                 st.session_state.go = True
                 st.session_state.m_obj = M_final
             except Exception as e:
-                st.error(f"Error en el formato: {e}")
+                st.error(f"Error en el formato de datos: {e}")
         else:
-            st.error("La matriz está vacía.")
-
-st.markdown("---")
+            st.error("Ingrese una matriz para continuar.")
 
 # --- PROCESAMIENTO ---
-if st.session_state.get('go', False):
+if st.session_state.go:
+    st.markdown("---")
     M = st.session_state.m_obj
     n, m = M.shape
     if (metodo == "Inversa" or metodo == "Determinante") and n != m:
-        st.error("Debe ser cuadrada para esta operación.")
+        st.error("Error: La operacion requiere una matriz cuadrada.")
     else:
-        # Para la inversa, aumentamos la matriz con la Identidad
         m_proc = M.row_join(sp.eye(n)) if metodo == "Inversa" else M
         resolver(m_proc, metodo)
