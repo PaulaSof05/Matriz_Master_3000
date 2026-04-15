@@ -48,7 +48,6 @@ def resolver(M, modo):
     n, cols = M.shape
     M_t = M.copy()
     det_signo = 1
-    st.write("### 🏁 Inicio del Proceso")
     st.latex(sp.latex(M_t))
 
     for i in range(min(n, cols)):
@@ -58,7 +57,7 @@ def resolver(M, modo):
                 if M_t[k, i] != 0:
                     M_t[i, :], M_t[k, :] = M_t[k, :], M_t[i, :]
                     det_signo *= -1
-                    st.info(f"🔄 Intercambio: $R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
+                    st.info(f"$R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
                     st.latex(sp.latex(M_t))
                     break
         
@@ -68,7 +67,7 @@ def resolver(M, modo):
         # 2. Normalización del pivote (Hacerlo 1)
         if modo != "Determinante" and piv != 1:
             M_t[i, :] = sp.simplify(M_t[i, :] / piv)
-            st.write(f"🎯 Hacer 1 el pivote: $R_{{{i+1}}} = R_{{{i+1}}} / ({sp.latex(piv)})$")
+            st.write(f"$R_{{{i+1}}} = R_{{{i+1}}} / ({sp.latex(piv)})$")
             st.latex(sp.latex(M_t))
 
         # 3. Eliminación de las demás celdas en la columna
@@ -95,27 +94,26 @@ def resolver(M, modo):
     if modo == "Determinante":
         diagonal = [M_t[x, x] for x in range(n)]
         det_final = sp.simplify(det_signo * sp.Mul(*diagonal))
-        st.success(f"### 🏁 Determinante Final: **{sp.latex(det_final)}**")
+        st.success(f"### Resultado: **{sp.latex(det_final)}**")
     
     elif modo == "Inversa":
         # Extraemos la parte derecha de la matriz aumentada (la inversa)
         M_inversa = M_t[:, n:]
-        st.success("### 🏁 Matriz Inversa Resultante ($A^{-1}$):")
+        st.success("###Matriz Inversa Resultante ($A^{-1}$):")
         st.latex(sp.latex(M_inversa))
         
     else:
-        st.success("### 🏁 Resultado Final (Forma Escalonada Reducida):")
+        st.success("###Resultado Final (Forma Escalonada Reducida):")
         st.latex(sp.latex(M_t))
 
 # --- INTERFAZ ---
-st.title("🚀 Matrix Master 3000")
-st.write("IPN ESCOM - Ciencia de Datos")
+st.write("Grupo 2AM2")
 
 col_input, col_ctrl = st.columns([2, 1])
 
 with col_input:
-    st.subheader("⌨️ Entrada por Renglón")
-    input_renglon = st.chat_input("Escribe los números de la fila (ej: 1 0 3) y presiona Enter")
+    st.subheader("Entrada por Renglón")
+    input_renglon = st.chat_input("Escribe los números deL reglón (ej: 1 0 3) y presiona Enter")
     
     if input_renglon:
         nueva_fila = input_renglon.split()
@@ -142,7 +140,7 @@ with col_input:
         st.rerun()
 
     if not st.session_state.df_matriz.empty:
-        st.write("### 📊 Matriz Detectada (Puedes editar celdas haciendo clic)")
+        st.write("### Matriz Detectada (Puedes editar celdas haciendo clic)")
         matriz_editada = st.data_editor(
             st.session_state.df_matriz,
             use_container_width=True,
@@ -151,15 +149,14 @@ with col_input:
         )
         st.session_state.df_matriz = matriz_editada
         
-        if st.button("🗑️ Borrar Todo"):
+        if st.button("Borrar Todo"):
             st.session_state.df_matriz = pd.DataFrame()
             st.session_state.go = False
             st.rerun()
     else:
-        st.info("Escribe tu primer renglón abajo para empezar.")
+        st.info("Escribe tu primer renglón para empezar.")
 
 with col_ctrl:
-    st.subheader("⚙️ Opciones del Sistema")
     
     metodo = st.radio(
         "Selecciona la operación:",
@@ -168,9 +165,9 @@ with col_ctrl:
     )
     
     if metodo in ["Inversa", "Determinante"]:
-        st.warning("⚠️ Asegúrate de que la matriz sea cuadrada.")
+        st.warning("Asegúrate de que la matriz sea cuadrada.")
     
-    if st.button("🚀 CALCULAR AHORA", use_container_width=True, type="primary"):
+    if st.button("CALCULAR", use_container_width=True, type="primary"):
         if not st.session_state.df_matriz.empty:
             try:
                 # sp.sympify permite manejar números y letras
@@ -178,7 +175,7 @@ with col_ctrl:
                 st.session_state.go = True
                 st.session_state.m_obj = M_final
             except Exception as e:
-                st.error(f"⚠️ Error en el formato: {e}")
+                st.error(f"Error en el formato: {e}")
         else:
             st.error("La matriz está vacía.")
 
