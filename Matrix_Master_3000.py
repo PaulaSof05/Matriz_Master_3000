@@ -96,8 +96,15 @@ def resolver(M, modo):
         diagonal = [M_t[x, x] for x in range(n)]
         det_final = sp.simplify(det_signo * sp.Mul(*diagonal))
         st.success(f"### 🏁 Determinante Final: **{sp.latex(det_final)}**")
+    
+    elif modo == "Inversa":
+        # Extraemos la parte derecha de la matriz aumentada (la inversa)
+        M_inversa = M_t[:, n:]
+        st.success("### 🏁 Matriz Inversa Resultante ($A^{-1}$):")
+        st.latex(sp.latex(M_inversa))
+        
     else:
-        st.success("### 🏁 Resultado Final:")
+        st.success("### 🏁 Resultado Final (Forma Escalonada Reducida):")
         st.latex(sp.latex(M_t))
 
 # --- INTERFAZ ---
@@ -146,7 +153,7 @@ with col_input:
         
         if st.button("🗑️ Borrar Todo"):
             st.session_state.df_matriz = pd.DataFrame()
-            st.session_state.go = False # Resetear estado de cálculo
+            st.session_state.go = False
             st.rerun()
     else:
         st.info("Escribe tu primer renglón abajo para empezar.")
@@ -166,7 +173,7 @@ with col_ctrl:
     if st.button("🚀 CALCULAR AHORA", use_container_width=True, type="primary"):
         if not st.session_state.df_matriz.empty:
             try:
-                # sp.sympify permite leer tanto números como letras (a, b, x, etc.)
+                # sp.sympify permite manejar números y letras
                 M_final = sp.Matrix(st.session_state.df_matriz.values).applyfunc(lambda x: sp.sympify(x))
                 st.session_state.go = True
                 st.session_state.m_obj = M_final
@@ -184,5 +191,6 @@ if st.session_state.get('go', False):
     if (metodo == "Inversa" or metodo == "Determinante") and n != m:
         st.error("Debe ser cuadrada para esta operación.")
     else:
+        # Para la inversa, aumentamos la matriz con la Identidad
         m_proc = M.row_join(sp.eye(n)) if metodo == "Inversa" else M
         resolver(m_proc, metodo)
