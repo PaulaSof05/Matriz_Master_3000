@@ -6,17 +6,14 @@ import numpy as np
 # 1. Configuración de página
 st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 
-# --- CSS PARA DEJAR LA TABLA "DESNUDA" Y PROFESIONAL ---
+# --- CSS PARA ESTILO PROFESIONAL ---
 st.markdown("""
     <style>
-    /* Ocultar encabezados de columnas y números de filas en el editor */
+    /* Estilo para que el editor de matriz se vea como cuadrícula matemática */
     [data-testid="stTable"] thead, [data-testid="stDataTable"] thead { display: none; }
-    [data-testid="stTable"] th, [data-testid="stDataTable"] th { display: none; }
-    
-    /* Estilo de las tablas de aritmética */
     .op-card {
         background-color: #ffffff;
-        border-left: 5px solid #2e7d32;
+        border-left: 5px solid #d32f2f;
         padding: 15px;
         margin: 15px 0;
         box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
@@ -28,7 +25,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNCIONES DE APOYO ---
+# --- INICIALIZACIÓN DEL ESTADO ---
+if 'df_matriz' not in st.session_state:
+    # Empezamos con un DataFrame vacío pero con estructura
+    st.session_state.df_matriz = pd.DataFrame()
+
+# --- FUNCIONES DE CÁLCULO ---
 def tabla_aritmetica(f_obj, f_piv, factor, f_res, titulo):
     with st.container():
         st.markdown(f"<div class='op-card'><b>⚡ {titulo}</b>", unsafe_allow_html=True)
@@ -43,7 +45,7 @@ def tabla_aritmetica(f_obj, f_piv, factor, f_res, titulo):
         """
         st.write(html, unsafe_allow_html=True)
 
-def resolver_matriz(M, modo):
+def resolver(M, modo):
     n, cols = M.shape
     M_t = M.copy()
     det_signo = 1
@@ -66,7 +68,7 @@ def resolver_matriz(M, modo):
         if modo != "Determinante" and piv != 1:
             inv = sp.Rational(1, piv)
             M_t[i, :] = M_t[i, :] * inv
-            st.write(f"🎯 Normalizar pivote: $R_{{{i+1}}} = R_{{{i+1}}} / {sp.latex(piv)}$")
+            st.write(f"🎯 Hacer 1 el pivote: $R_{{{i+1}}} = R_{{{i+1}}} / {sp.latex(piv)}$")
             st.latex(sp.latex(M_t))
 
         for j in range(n):
@@ -81,59 +83,72 @@ def resolver_matriz(M, modo):
 
     if modo == "Determinante":
         res = det_signo * np.prod([M_t[x,x] for x in range(n)])
-        st.success(f"### 🏁 Resultado Final: **{sp.latex(res)}**")
+        st.success(f"### 🏁 Determinante Final: **{sp.latex(res)}**")
     else:
         st.success("### 🏁 Resultado Final:")
         st.latex(sp.latex(M_t))
 
 # --- INTERFAZ ---
 st.title("🚀 Matrix Master 3000")
-st.write("IPN ESCOM - Ciencia de Datos")
 
-col_in, col_op = st.columns([2, 1])
+col_input, col_ctrl = st.columns([2, 1])
 
-with col_in:
-    st.subheader("⌨️ Editor de Matriz")
-    st.info("Haz doble clic en cualquier celda para modificarla. Usa los botones de abajo para añadir filas o columnas.")
+with col_input:
+    st.subheader("⌨️ Entrada por Renglón")
+    # Entrada tipo chat para velocidad
+    input_renglon = st.chat_input("Escribe los números de la fila (ej: 1 0 3) y presiona Enter")
     
-    # Inicializar matriz vacía si no existe
-    if 'data' not in st.session_state:
-        st.session_state.data = pd.DataFrame([[0, 0], [0, 0]])
+    if input_renglon:
+        # Convertir a lista de números
+        nueva_fila = input_renglon.split()
+        temp_df = pd.DataFrame([nueva_fila])
+        # Concatenar a la matriz existente
+        st.session_state.df_matriz = pd.concat([st.session_state.df_matriz, temp_df], ignore_index=True).fillna(0)
+        st.rerun()
 
-    # El Editor Mágico
-    edited_df = st.data_editor(
-        st.session_state.data,
-        num_rows="dynamic", # Permite añadir/quitar filas
-        use_container_width=True,
-        hide_index=True,    # Oculta el 0, 1, 2 de la izquierda
-    )
-    st.session_state.data = edited_df
+    # MOSTRAR LA MATRIZ COMO TABLA EDITABLE
+    if not st.session_state.df_matriz.empty:
+        st.write("### 📊 Matriz Detectada (Puedes editar celdas haciendo clic)")
+        # El editor permite modificar celdas específicas si el usuario se equivocó
+        matriz_editada = st.data_editor(
+            st.session_state.df_matriz,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic"
+        )
+        st.session_state.df_matriz = matriz_editada
+        
+        # Botón para limpiar
+        if st.button("🗑️ Borrar Todo"):
+            st.session_state.df_matriz = pd.DataFrame()
+            st.rerun()
+    else:
+        st.info("Escribe tu primer renglón abajo para empezar.")
 
-with col_op:
+with col_ctrl:
     st.subheader("⚙️ Opciones")
     metodo = st.selectbox("Operación:", ["Gauss-Jordan", "Inversa", "Determinante"])
     
     if st.button("🚀 CALCULAR", use_container_width=True, type="primary"):
-        try:
-            # Convertir el DataFrame a matriz de Sympy
-            M_input = sp.Matrix(edited_df.values.astype(str)).applyfunc(sp.Rational)
-            st.session_state.ready_to_calc = True
-            st.session_state.matrix_obj = M_input
-        except Exception as e:
-            st.error("Asegúrate de que todas las celdas tengan números válidos.")
+        if not st.session_state.df_matriz.empty:
+            try:
+                # Convertir a Sympy para fracciones exactas
+                M_final = sp.Matrix(st.session_state.df_matriz.values.astype(str)).applyfunc(sp.Rational)
+                st.session_state.go = True
+                st.session_state.m_obj = M_final
+            except:
+                st.error("Revisa que todos los datos sean números.")
+        else:
+            st.error("La matriz está vacía.")
 
 st.markdown("---")
 
-# --- FLUJO DE CÁLCULO ---
-if st.session_state.get('ready_to_calc', False):
-    M = st.session_state.matrix_obj
+# --- PROCESAMIENTO ---
+if st.session_state.get('go', False):
+    M = st.session_state.m_obj
     n, m = M.shape
-    
-    if metodo == "Inversa" or metodo == "Determinante":
-        if n != m:
-            st.error("La matriz debe ser cuadrada.")
-        else:
-            m_proc = M.row_join(sp.eye(n)) if metodo == "Inversa" else M
-            resolver_matriz(m_proc, metodo)
+    if (metodo == "Inversa" or metodo == "Determinante") and n != m:
+        st.error("Debe ser cuadrada.")
     else:
-        resolver_matriz(M, "Gauss-Jordan")
+        m_proc = M.row_join(sp.eye(n)) if metodo == "Inversa" else M
+        resolver(m_proc, metodo)
