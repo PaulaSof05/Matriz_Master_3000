@@ -1,12 +1,10 @@
 import streamlit as st
 import pandas as pd
 import sympy as sp
-import numpy as np
 
-# 1. Configuracion de pagina
 st.set_page_config(page_title="Matrices", layout="wide")
 
-# --- CSS PARA ESTILO LIMPIO ---
+# Estilos de la interfaz
 st.markdown("""
     <style>
     [data-testid="stTable"] thead, [data-testid="stDataTable"] thead { display: none; }
@@ -18,20 +16,15 @@ st.markdown("""
         box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
         color: black;
     }
-    .arit-table { width: 100%; border-collapse: collapse; text-align: center; margin-top: 10px; }
+    .arit-table { width: 100%; border-collapse: collapse; text-align: center; }
     .arit-table td { border: 1px solid #ddd; padding: 8px; }
     .res-row { background-color: #e8f5e9; font-weight: bold; }
-    div.stButton > button { margin-top: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZACION DEL ESTADO ---
 if 'df_matriz' not in st.session_state:
     st.session_state.df_matriz = pd.DataFrame()
-if 'go' not in st.session_state:
-    st.session_state.go = False
 
-# --- FUNCIONES DE CALCULO ---
 def tabla_aritmetica(f_obj, f_piv, factor, f_res, titulo):
     with st.container():
         st.markdown(f"<div class='op-card'><b>{titulo}</b>", unsafe_allow_html=True)
@@ -46,69 +39,81 @@ def tabla_aritmetica(f_obj, f_piv, factor, f_res, titulo):
         """
         st.write(html, unsafe_allow_html=True)
 
-def resolver(M, modo):
-    n, cols = M.shape
-    M_t = M.copy()
-    det_signo = 1
-    
-    st.markdown("### Proceso de Resolucion")
-    st.latex(sp.latex(M_t))
+# --- IMPLEMENTACIÓN DE LOS DIAGRAMAS ---
 
-    for i in range(min(n, cols)):
-        # 1. Pivoteo
-        if M_t[i, i] == 0:
+def ceros_arriba(M, i_pivote):
+    # Basado en Diagrama Equipo 1
+    # Inicio -> F = i -> k = i - 1 -> k < 0?
+    n, cols = M.shape
+    k = i_pivote - 1
+    
+    while k >= 0:
+        factor = M[k, i_pivote]
+        if factor != 0:
+            f_obj = M[k, :].tolist()[0]
+            f_piv = M[i_pivote, :].tolist()[0]
+            M[k, :] = sp.simplify(M[k, :] - factor * M[i_pivote, :])
+            
+            tabla_aritmetica(f_obj, f_piv, factor, M[k, :].tolist()[0], 
+                           f"Equipo 1 (Ceros arriba): $R_{{{k+1}}} = R_{{{k+1}}} - ({sp.latex(factor)})R_{{{i_pivote+1}}}$")
+            st.latex(sp.latex(M))
+        k = k - 1
+    return M
+
+def ceros_abajo(M, i_pivote):
+    # Basado en Diagrama Equipo 2
+    # Definir L = i -> Mientras ak+1 <= m -> Sea K = ai y K != 0
+    n, cols = M.shape
+    k = i_pivote + 1
+    
+    while k < n:
+        factor = M[k, i_pivote]
+        if factor != 0:
+            f_obj = M[k, :].tolist()[0]
+            f_piv = M[i_pivote, :].tolist()[0]
+            M[k, :] = sp.simplify(M[k, :] - factor * M[i_pivote, :])
+            
+            tabla_aritmetica(f_obj, f_piv, factor, M[k, :].tolist()[0], 
+                           f"Equipo 2 (Ceros abajo): $R_{{{k+1}}} = R_{{{k+1}}} - ({sp.latex(factor)})R_{{{i_pivote+1}}}$")
+            st.latex(sp.latex(M))
+        k = k + 1
+    
+    # El diagrama del Equipo 2 conecta con "O's arriba"
+    return ceros_arriba(M, i_pivote)
+
+def hacer_1_pivote(M, i_pivote):
+    # Basado en Diagrama Equipo 3
+    # Leer R[i], pivote -> i=0 -> i < TAM -> Arr[i] = R[i]/a
+    n, cols = M.shape
+    pivote_val = M[i_pivote, i_pivote]
+    
+    if pivote_val != 1 and pivote_val != 0:
+        M[i_pivote, :] = sp.simplify(M[i_pivote, :] / pivote_val)
+        st.write(f"Equipo 3 (Hacer 1 pivote): $R_{{{i_pivote+1}}} = R_{{{i_pivote+1}}} / {sp.latex(pivote_val)}$")
+        st.latex(sp.latex(M))
+    
+    # El diagrama del Equipo 3 llama a "Hacer 0's abajo"
+    return ceros_abajo(M, i_pivote)
+
+def encontrar_cambiar_pivote(M):
+    # Basado en Diagrama Equipo 4
+    n, cols = M.shape
+    # Nota: Se ajusta el i, j para iterar sobre la diagonal principal en orden
+    for j in range(min(n, cols)):
+        i = j
+        if M[i, j] == 0:
+            # Buscar aij != 0
             for k in range(i + 1, n):
-                if M_t[k, i] != 0:
-                    M_t[i, :], M_t[k, :] = M_t[k, :], M_t[i, :]
-                    det_signo *= -1
-                    st.info(f"Intercambio: $R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
-                    st.latex(sp.latex(M_t))
+                if M[k, j] != 0:
+                    # Rx = R1, R1 = Ri, Ri = Rx
+                    M[i, :], M[k, :] = M[k, :], M[i, :]
+                    st.info(f"Equipo 4 (Cambio): $R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
+                    st.latex(sp.latex(M))
                     break
         
-        piv = M_t[i, i]
-        if piv == 0: continue
-
-        # 2. Normalizacion
-        if modo != "Determinante" and piv != 1:
-            M_t[i, :] = sp.simplify(M_t[i, :] / piv)
-            st.write(f"Normalizacion: $R_{{{i+1}}} = R_{{{i+1}}} / ({sp.latex(piv)})$")
-            st.latex(sp.latex(M_t))
-
-        # 3. Eliminacion
-        for j in range(n):
-            if i != j:
-                if modo == "Determinante" and j < i: continue
-                
-                factor = M_t[j, i]
-                if factor != 0:
-                    f_o = M_t[j, :].tolist()[0]
-                    f_p = M_t[i, :].tolist()[0]
-                    M_t[j, :] = sp.simplify(M_t[j, :] - factor * M_t[i, :])
-                    
-                    tabla_aritmetica(
-                        f_o, 
-                        f_p, 
-                        factor, 
-                        M_t[j, :].tolist()[0], 
-                        f"Operacion: $R_{{{j+1}}} = R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}}$"
-                    )
-                    st.latex(sp.latex(sp.simplify(M_t)))
-
-    # --- RESULTADOS FINALES ---
-    st.markdown("---")
-    if modo == "Determinante":
-        diagonal = [M_t[x, x] for x in range(n)]
-        det_final = sp.simplify(det_signo * sp.Mul(*diagonal))
-        st.success(f"### Valor del Determinante: **{sp.latex(det_final)}**")
-    
-    elif modo == "Inversa":
-        M_inversa = M_t[:, n:]
-        st.success("### Matriz Inversa Resultante ($A^{-1}$):")
-        st.latex(sp.latex(M_inversa))
-        
-    else:
-        st.success("### Resultado Final (Gauss-Jordan):")
-        st.latex(sp.latex(M_t))
+        # El diagrama llama a "Hacer 1 pivote"
+        M = hacer_1_pivote(M, j)
+    return M
 
 # --- INTERFAZ ---
 st.markdown("#### Grupo 2AM2")
