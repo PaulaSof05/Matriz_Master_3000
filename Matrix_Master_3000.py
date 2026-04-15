@@ -99,33 +99,36 @@ with col_input:
     
     if input_renglon:
         nueva_fila = input_renglon.split()
-        # Creamos un DataFrame temporal con la nueva fila
+        # 1. Crear el DataFrame temporal
         temp_df = pd.DataFrame([nueva_fila])
         
         if st.session_state.df_matriz.empty:
             st.session_state.df_matriz = temp_df
         else:
-            # Concatenamos y llenamos huecos con 0 si las filas tienen distinto tamaño
-            st.session_state.df_matriz = pd.concat([st.session_state.df_matriz, temp_df], ignore_index=True).fillna("0")
+            # --- EL ARREGLO CRÍTICO ---
+            # Forzamos a que la nueva fila use los mismos nombres de columna (0, 1, 2...) 
+            # que la matriz actual para que no se salte espacios.
+            temp_df.columns = range(len(nueva_fila))
+            
+            # Concatenamos ignorando los nombres de las columnas viejas para que se alineen por posición
+            st.session_state.df_matriz = pd.concat(
+                [st.session_state.df_matriz, temp_df], 
+                ignore_index=True
+            ).fillna("0")
         
-        # --- EL TRUCO PARA EL ERROR: Forzar nombres de columnas únicos ---
-        # Esto renombra las columnas a 0, 1, 2, 3... asegurando que no haya duplicados
+        # 2. Re-estandarizar nombres de columnas para el editor (0, 1, 2, 3...)
         st.session_state.df_matriz.columns = [str(i) for i in range(len(st.session_state.df_matriz.columns))]
         
         st.rerun()
 
-    # MOSTRAR LA MATRIZ COMO TABLA EDITABLE
+    # Mostrar el editor (el resto del código sigue igual)
     if not st.session_state.df_matriz.empty:
-        st.write("### 📊 Matriz Detectada (Puedes editar celdas haciendo clic)")
-        
-        # El editor ahora recibirá columnas con nombres limpios
         matriz_editada = st.data_editor(
             st.session_state.df_matriz,
             use_container_width=True,
             hide_index=True,
             num_rows="dynamic"
         )
-        # Sincronizamos los cambios realizados manualmente en la tabla
         st.session_state.df_matriz = matriz_editada
         
         # Botón para limpiar
