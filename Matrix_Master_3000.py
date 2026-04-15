@@ -4,7 +4,7 @@ import sympy as sp
 import numpy as np
 
 # 1. Configuración de página
-st.set_page_config(page_title="Matrix Master 3000", layout="wide")
+st.set_page_config(page_title="Matrices", layout="wide")
 
 # --- CSS PARA ESTILO PROFESIONAL ---
 st.markdown("""
