@@ -130,7 +130,7 @@ with col_input:
         # Aseguramos que todo se mantenga como string para evitar errores de tipo
         st.session_state.df_matriz.columns = [str(i) for i in range(len(st.session_state.df_matriz.columns))]
         
-        st.rerun(
+        st.rerun()
 
     # Mostrar el editor (el resto del código sigue igual)
     if not st.session_state.df_matriz.empty:
