@@ -53,6 +53,7 @@ def resolver(M, modo):
     st.latex(sp.latex(M_t))
 
     for i in range(min(n, cols)):
+        # 1. Pivoteo (Intercambio de renglones si el pivote es 0)
         if M_t[i, i] == 0:
             for k in range(i + 1, n):
                 if M_t[k, i] != 0:
@@ -65,29 +66,47 @@ def resolver(M, modo):
         piv = M_t[i, i]
         if piv == 0: continue
 
+        # 2. Normalización del pivote (Hacerlo 1)
+        # Usamos división directa que SymPy maneja perfecto con letras (piv = 'a' -> 1/a)
         if modo != "Determinante" and piv != 1:
-            inv = sp.Rational(1, piv)
-            M_t[i, :] = M_t[i, :] * inv
-            st.write(f"🎯 Hacer 1 el pivote: $R_{{{i+1}}} = R_{{{i+1}}} / {sp.latex(piv)}$")
+            M_t[i, :] = sp.simplify(M_t[i, :] / piv)
+            st.write(f"🎯 Hacer 1 el pivote: $R_{{{i+1}}} = R_{{{i+1}}} / ({sp.latex(piv)})$")
             st.latex(sp.latex(M_t))
 
+        # 3. Eliminación de las demás celdas en la columna
         for j in range(n):
             if i != j:
+                # Si es determinante, solo eliminamos hacia abajo (triangular superior)
                 if modo == "Determinante" and j < i: continue
+                
                 factor = M_t[j, i]
                 if factor != 0:
-                    f_o, f_p = M_t[j,:].tolist()[0], M_t[i,:].tolist()[0]
-                    M_t[j, :] = M_t[j, :] - factor * M_t[i, :]
-                    tabla_aritmetica(f_o, f_p, factor, M_t[j,:].tolist()[0], f"$R_{{{j+1}}} = R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}}$")
+                    # Guardamos estados para la tabla aritmética
+                    f_o = M_t[j, :].tolist()[0]
+                    f_p = M_t[i, :].tolist()[0]
+                    
+                    # Aplicamos la operación y simplificamos (clave para letras)
+                    M_t[j, :] = sp.simplify(M_t[j, :] - factor * M_t[i, :])
+                    
+                    # Mostrar el desglose de la operación
+                    tabla_aritmetica(
+                        f_o, 
+                        f_p, 
+                        factor, 
+                        M_t[j, :].tolist()[0], 
+                        f"$R_{{{j+1}}} = R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}}$"
+                    )
                     st.latex(sp.latex(M_t))
 
+    # --- RESULTADOS FINALES ---
     if modo == "Determinante":
-        res = det_signo * np.prod([M_t[x,x] for x in range(n)])
-        st.success(f"### 🏁 Determinante Final: **{sp.latex(res)}**")
+        # Multiplicamos la diagonal de forma simbólica
+        diagonal = [M_t[x, x] for x in range(n)]
+        det_final = sp.simplify(det_signo * sp.Mul(*diagonal))
+        st.success(f"### 🏁 Determinante Final: **{sp.latex(det_final)}**")
     else:
         st.success("### 🏁 Resultado Final:")
         st.latex(sp.latex(M_t))
-
 # --- INTERFAZ ---
 st.title("🚀 Matrix Master 3000")
 
@@ -156,12 +175,12 @@ with col_ctrl:
     if st.button("🚀 CALCULAR", use_container_width=True, type="primary"):
         if not st.session_state.df_matriz.empty:
             try:
-                # Convertir a Sympy para fracciones exactas
-                M_final = sp.Matrix(st.session_state.df_matriz.values.astype(str)).applyfunc(sp.Rational)
+                # sp.sympify es la clave: convierte "a", "x", "1/2" o "5" en objetos matemáticos
+                M_final = sp.Matrix(st.session_state.df_matriz.values).applyfunc(lambda x: sp.sympify(x))
                 st.session_state.go = True
                 st.session_state.m_obj = M_final
-            except:
-                st.error("Revisa que todos los datos sean números.")
+            except Exception as e:
+                st.error(f"⚠️ Error en el formato: {e}")
         else:
             st.error("La matriz está vacía.")
 
