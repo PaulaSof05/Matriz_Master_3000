@@ -27,7 +27,6 @@ st.markdown("""
 
 # --- INICIALIZACIÓN DEL ESTADO ---
 if 'df_matriz' not in st.session_state:
-    # Empezamos con un DataFrame vacío pero con estructura
     st.session_state.df_matriz = pd.DataFrame()
 
 # --- FUNCIONES DE CÁLCULO ---
@@ -67,7 +66,6 @@ def resolver(M, modo):
         if piv == 0: continue
 
         # 2. Normalización del pivote (Hacerlo 1)
-        # Usamos división directa que SymPy maneja perfecto con letras (piv = 'a' -> 1/a)
         if modo != "Determinante" and piv != 1:
             M_t[i, :] = sp.simplify(M_t[i, :] / piv)
             st.write(f"🎯 Hacer 1 el pivote: $R_{{{i+1}}} = R_{{{i+1}}} / ({sp.latex(piv)})$")
@@ -76,19 +74,14 @@ def resolver(M, modo):
         # 3. Eliminación de las demás celdas en la columna
         for j in range(n):
             if i != j:
-                # Si es determinante, solo eliminamos hacia abajo (triangular superior)
                 if modo == "Determinante" and j < i: continue
                 
                 factor = M_t[j, i]
                 if factor != 0:
-                    # Guardamos estados para la tabla aritmética
                     f_o = M_t[j, :].tolist()[0]
                     f_p = M_t[i, :].tolist()[0]
-                    
-                    # Aplicamos la operación y simplificamos (clave para letras)
                     M_t[j, :] = sp.simplify(M_t[j, :] - factor * M_t[i, :])
                     
-                    # Mostrar el desglose de la operación
                     tabla_aritmetica(
                         f_o, 
                         f_p, 
@@ -100,15 +93,16 @@ def resolver(M, modo):
 
     # --- RESULTADOS FINALES ---
     if modo == "Determinante":
-        # Multiplicamos la diagonal de forma simbólica
         diagonal = [M_t[x, x] for x in range(n)]
         det_final = sp.simplify(det_signo * sp.Mul(*diagonal))
         st.success(f"### 🏁 Determinante Final: **{sp.latex(det_final)}**")
     else:
         st.success("### 🏁 Resultado Final:")
         st.latex(sp.latex(M_t))
+
 # --- INTERFAZ ---
 st.title("🚀 Matrix Master 3000")
+st.write("IPN ESCOM - Ciencia de Datos")
 
 col_input, col_ctrl = st.columns([2, 1])
 
@@ -118,41 +112,30 @@ with col_input:
     
     if input_renglon:
         nueva_fila = input_renglon.split()
-        # 1. Crear el DataFrame temporal
         temp_df = pd.DataFrame([nueva_fila])
         
         if st.session_state.df_matriz.empty:
-            # Primera vez: definimos las columnas como strings desde el inicio
             st.session_state.df_matriz = temp_df
             st.session_state.df_matriz.columns = [str(i) for i in range(len(nueva_fila))]
         else:
-            # --- EL ARREGLO DEFINITIVO ---
-            # Forzamos a que el nuevo renglón tenga exactamente los mismos nombres (strings)
-            # que la matriz que ya existe.
             n_cols_actual = len(st.session_state.df_matriz.columns)
             n_cols_nueva = len(nueva_fila)
             
-            # Si la nueva fila es más larga, expandimos la matriz actual primero
             if n_cols_nueva > n_cols_actual:
                 for i in range(n_cols_actual, n_cols_nueva):
                     st.session_state.df_matriz[str(i)] = "0"
             
-            # Ajustamos los nombres de la nueva fila para que coincidan (como strings)
             temp_df.columns = [str(i) for i in range(n_cols_nueva)]
-            
-            # Concatenamos. Ahora sí los nombres coinciden perfectamente.
             st.session_state.df_matriz = pd.concat(
                 [st.session_state.df_matriz, temp_df], 
                 ignore_index=True
             ).fillna("0")
         
-        # Aseguramos que todo se mantenga como string para evitar errores de tipo
         st.session_state.df_matriz.columns = [str(i) for i in range(len(st.session_state.df_matriz.columns))]
-        
         st.rerun()
 
-    # Mostrar el editor (el resto del código sigue igual)
     if not st.session_state.df_matriz.empty:
+        st.write("### 📊 Matriz Detectada (Puedes editar celdas haciendo clic)")
         matriz_editada = st.data_editor(
             st.session_state.df_matriz,
             use_container_width=True,
@@ -161,21 +144,29 @@ with col_input:
         )
         st.session_state.df_matriz = matriz_editada
         
-        # Botón para limpiar
         if st.button("🗑️ Borrar Todo"):
             st.session_state.df_matriz = pd.DataFrame()
+            st.session_state.go = False # Resetear estado de cálculo
             st.rerun()
     else:
         st.info("Escribe tu primer renglón abajo para empezar.")
 
 with col_ctrl:
-    st.subheader("⚙️ Opciones")
-    metodo = st.selectbox("Operación:", ["Gauss-Jordan", "Inversa", "Determinante"])
+    st.subheader("⚙️ Opciones del Sistema")
     
-    if st.button("🚀 CALCULAR", use_container_width=True, type="primary"):
+    metodo = st.radio(
+        "Selecciona la operación:",
+        ["Gauss-Jordan", "Inversa", "Determinante"],
+        help="Gauss-Jordan funciona para cualquier matriz. Inversa y Determinante requieren matrices cuadradas."
+    )
+    
+    if metodo in ["Inversa", "Determinante"]:
+        st.warning("⚠️ Asegúrate de que la matriz sea cuadrada.")
+    
+    if st.button("🚀 CALCULAR AHORA", use_container_width=True, type="primary"):
         if not st.session_state.df_matriz.empty:
             try:
-                # sp.sympify es la clave: convierte "a", "x", "1/2" o "5" en objetos matemáticos
+                # sp.sympify permite leer tanto números como letras (a, b, x, etc.)
                 M_final = sp.Matrix(st.session_state.df_matriz.values).applyfunc(lambda x: sp.sympify(x))
                 st.session_state.go = True
                 st.session_state.m_obj = M_final
@@ -191,7 +182,7 @@ if st.session_state.get('go', False):
     M = st.session_state.m_obj
     n, m = M.shape
     if (metodo == "Inversa" or metodo == "Determinante") and n != m:
-        st.error("Debe ser cuadrada.")
+        st.error("Debe ser cuadrada para esta operación.")
     else:
         m_proc = M.row_join(sp.eye(n)) if metodo == "Inversa" else M
         resolver(m_proc, metodo)
