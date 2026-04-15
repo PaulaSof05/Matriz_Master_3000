@@ -103,23 +103,34 @@ with col_input:
         temp_df = pd.DataFrame([nueva_fila])
         
         if st.session_state.df_matriz.empty:
+            # Primera vez: definimos las columnas como strings desde el inicio
             st.session_state.df_matriz = temp_df
+            st.session_state.df_matriz.columns = [str(i) for i in range(len(nueva_fila))]
         else:
-            # --- EL ARREGLO CRÍTICO ---
-            # Forzamos a que la nueva fila use los mismos nombres de columna (0, 1, 2...) 
-            # que la matriz actual para que no se salte espacios.
-            temp_df.columns = range(len(nueva_fila))
+            # --- EL ARREGLO DEFINITIVO ---
+            # Forzamos a que el nuevo renglón tenga exactamente los mismos nombres (strings)
+            # que la matriz que ya existe.
+            n_cols_actual = len(st.session_state.df_matriz.columns)
+            n_cols_nueva = len(nueva_fila)
             
-            # Concatenamos ignorando los nombres de las columnas viejas para que se alineen por posición
+            # Si la nueva fila es más larga, expandimos la matriz actual primero
+            if n_cols_nueva > n_cols_actual:
+                for i in range(n_cols_actual, n_cols_nueva):
+                    st.session_state.df_matriz[str(i)] = "0"
+            
+            # Ajustamos los nombres de la nueva fila para que coincidan (como strings)
+            temp_df.columns = [str(i) for i in range(n_cols_nueva)]
+            
+            # Concatenamos. Ahora sí los nombres coinciden perfectamente.
             st.session_state.df_matriz = pd.concat(
                 [st.session_state.df_matriz, temp_df], 
                 ignore_index=True
             ).fillna("0")
         
-        # 2. Re-estandarizar nombres de columnas para el editor (0, 1, 2, 3...)
+        # Aseguramos que todo se mantenga como string para evitar errores de tipo
         st.session_state.df_matriz.columns = [str(i) for i in range(len(st.session_state.df_matriz.columns))]
         
-        st.rerun()
+        st.rerun(
 
     # Mostrar el editor (el resto del código sigue igual)
     if not st.session_state.df_matriz.empty:
