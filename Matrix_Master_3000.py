@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import sympy as sp
 
-# 1. Configuración de pagina
+# 1. Configuración de página
 st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 
-# --- CSS PARA DISEÑO PROFESIONAL IZQUIERDO Y TABLAS ---
+# --- CSS PARA DISEÑO PROFESIONAL ---
 st.markdown("""
     <style>
     .table-side {
@@ -32,29 +32,22 @@ if 'df_matriz' not in st.session_state:
 if 'go' not in st.session_state:
     st.session_state.go = False
 
-# --- RENDERIZADO DE MATRIZ (CORREGIDO) ---
+# --- RENDERIZADO DE MATRIZ ---
 def render_mat(M, modo, simbolo="\\approx"):
     n, m = M.shape
-    # Eliminamos 'fallback_rescale' para evitar el TypeError
     M_tex = sp.latex(M) 
-    
     if modo != "Determinante":
-        # Insertar la línea vertical para la matriz aumentada
         c_str = "c" * (m-1) + "|c"
         M_tex = M_tex.replace(r"\begin{matrix}", rf"\begin{{array}}{{{c_str}}}").replace(r"\end{matrix}", r"\end{array}")
-    
     return f"{simbolo} {M_tex}"
 
 # --- TABLA ARITMÉTICA ---
 def dibujar_paso(M_prev, f_obj, f_piv, factor, titulo, modo, es_primera=False):
     simb = "=" if es_primera else "\\approx"
-    
     col_mat, col_tab = st.columns([1, 2])
-    
     with col_mat:
         st.latex(render_mat(M_prev, modo, simb))
         st.markdown(f"**{titulo}**")
-    
     with col_tab:
         st.markdown("<div class='table-side'>", unsafe_allow_html=True)
         cols_head = "".join([f"<td>C{i+1}</td>" for i in range(len(f_obj))])
@@ -73,11 +66,8 @@ def resolver(M, modo):
     n, cols = M.shape
     M_t = M.copy()
     es_primera = True
-    
     st.markdown("### Proceso de Resolución")
-
     for i in range(min(n, cols)):
-        # 1. Pivoteo
         if M_t[i, i] == 0:
             for k in range(i + 1, n):
                 if M_t[k, i] != 0:
@@ -87,22 +77,15 @@ def resolver(M, modo):
                     st.info(f"$R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
                     es_primera = False
                     break
-        
-        # 2. Normalización (Pivote a 1) - Obligatorio según algoritmo
         piv = M_t[i, i]
         if piv != 0:
             M_before = M_t.copy()
             M_t[i, :] = sp.simplify(M_t[i, :] / piv)
-            
-            c_m, c_t = st.columns([1, 2])
+            c_m, _ = st.columns([1, 2])
             with c_m:
                 st.latex(render_mat(M_before, modo, "=" if es_primera else "\\approx"))
                 st.write(f"$R_{{{i+1}}} / ({sp.latex(piv)}) \\to R_{{{i+1}}}$")
-            with c_t:
-                st.empty() 
             es_primera = False
-
-        # 3. Eliminación
         for j in range(n):
             if i != j:
                 if modo == "Determinante" and j < i: continue
@@ -112,14 +95,8 @@ def resolver(M, modo):
                     f_p = M_t[i, :].tolist()[0]
                     M_old_step = M_t.copy()
                     M_t[j, :] = sp.simplify(M_t[j, :] - factor * M_t[i, :])
-                    
-                    dibujar_paso(
-                        M_old_step, f_o, f_p, factor, 
-                        f"$R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}} \\to R_{{{j+1}}}$",
-                        modo, es_primera
-                    )
+                    dibujar_paso(M_old_step, f_o, f_p, factor, f"$R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}} \\to R_{{{j+1}}}$", modo, es_primera)
                     es_primera = False
-
     st.markdown("---")
     st.success("### Resultado Final:")
     st.latex(render_mat(M_t, modo, "\\approx"))
@@ -138,11 +115,19 @@ with col_in:
         if st.session_state.df_matriz.empty:
             st.session_state.df_matriz = df_temp
         else:
+            # FIX: Asegurar que los nombres de columnas coincidan antes de concatenar
+            df_temp.columns = [str(k) for k in range(len(fila))]
+            st.session_state.df_matriz.columns = [str(k) for k in range(len(st.session_state.df_matriz.columns))]
             st.session_state.df_matriz = pd.concat([st.session_state.df_matriz, df_temp], ignore_index=True).fillna("0")
+        
+        # FIX FINAL: Forzar nombres únicos otra vez por si acaso
+        st.session_state.df_matriz.columns = [str(k) for k in range(len(st.session_state.df_matriz.columns))]
         st.rerun()
 
     if not st.session_state.df_matriz.empty:
-        st.session_state.df_matriz = st.data_editor(st.session_state.df_matriz, use_container_width=True, hide_index=True, num_rows="dynamic")
+        # Mostramos el editor
+        edited_df = st.data_editor(st.session_state.df_matriz, use_container_width=True, hide_index=True, num_rows="dynamic")
+        st.session_state.df_matriz = edited_df
         if st.button("🗑️ Borrar Todo"):
             st.session_state.df_matriz = pd.DataFrame()
             st.session_state.go = False
