@@ -41,8 +41,8 @@ def render_mat(M, modo, simbolo="\\approx"):
         M_tex = M_tex.replace(r"\begin{matrix}", rf"\begin{{array}}{{{c_str}}}").replace(r"\end{matrix}", r"\end{array}")
     return f"{simbolo} {M_tex}"
 
-# --- TABLA ARITMÉTICA ---
-def dibujar_paso(M_prev, f_obj, f_piv, factor, titulo, modo, es_primera=False):
+# --- TABLA ARITMÉTICA (CORREGIDA: Se agregó f_res) ---
+def dibujar_paso(M_prev, f_obj, f_piv, factor, f_res, titulo, modo, es_primera=False):
     simb = "=" if es_primera else "\\approx"
     col_mat, col_tab = st.columns([1, 2])
     with col_mat:
@@ -67,7 +67,9 @@ def resolver(M, modo):
     M_t = M.copy()
     es_primera = True
     st.markdown("### Proceso de Resolución")
+    
     for i in range(min(n, cols)):
+        # 1. Cambio de renglón (Equipo 4)
         if M_t[i, i] == 0:
             for k in range(i + 1, n):
                 if M_t[k, i] != 0:
@@ -77,6 +79,8 @@ def resolver(M, modo):
                     st.info(f"$R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
                     es_primera = False
                     break
+        
+        # 2. Hacer 1 el pivote (Equipo 3)
         piv = M_t[i, i]
         if piv != 0:
             M_before = M_t.copy()
@@ -86,17 +90,24 @@ def resolver(M, modo):
                 st.latex(render_mat(M_before, modo, "=" if es_primera else "\\approx"))
                 st.write(f"$R_{{{i+1}}} / ({sp.latex(piv)}) \\to R_{{{i+1}}}$")
             es_primera = False
+            
+        # 3. Hacer 0's (Equipos 1 y 2)
         for j in range(n):
             if i != j:
-                if modo == "Determinante" and j < i: continue
                 factor = M_t[j, i]
                 if factor != 0:
                     f_o = M_t[j, :].tolist()[0]
                     f_p = M_t[i, :].tolist()[0]
                     M_old_step = M_t.copy()
                     M_t[j, :] = sp.simplify(M_t[j, :] - factor * M_t[i, :])
-                    dibujar_paso(M_old_step, f_o, f_p, factor, f"$R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}} \\to R_{{{j+1}}}$", modo, es_primera)
+                    f_r = M_t[j, :].tolist()[0] # Guardamos el resultado para la tabla
+                    
+                    # Llamada corregida pasando f_r
+                    dibujar_paso(M_old_step, f_o, f_p, factor, f_r, 
+                                 f"$R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}} \\to R_{{{j+1}}}$", 
+                                 modo, es_primera)
                     es_primera = False
+                    
     st.markdown("---")
     st.success("### Resultado Final:")
     st.latex(render_mat(M_t, modo, "\\approx"))
@@ -108,33 +119,28 @@ st.title("🚀 Matrix Master 3000")
 col_in, col_ct = st.columns([2, 1])
 
 with col_in:
-    entrada = st.chat_input("Escribe los números (ej: 1 2 3) y presiona Enter")
+    entrada = st.chat_input("Escribe los números de la fila (ej: 1 0 3) y presiona Enter")
     if entrada:
         fila = entrada.split()
         df_temp = pd.DataFrame([fila])
         if st.session_state.df_matriz.empty:
             st.session_state.df_matriz = df_temp
         else:
-            # FIX: Asegurar que los nombres de columnas coincidan antes de concatenar
             df_temp.columns = [str(k) for k in range(len(fila))]
             st.session_state.df_matriz.columns = [str(k) for k in range(len(st.session_state.df_matriz.columns))]
             st.session_state.df_matriz = pd.concat([st.session_state.df_matriz, df_temp], ignore_index=True).fillna("0")
-        
-        # FIX FINAL: Forzar nombres únicos otra vez por si acaso
         st.session_state.df_matriz.columns = [str(k) for k in range(len(st.session_state.df_matriz.columns))]
         st.rerun()
 
     if not st.session_state.df_matriz.empty:
-        # Mostramos el editor
-        edited_df = st.data_editor(st.session_state.df_matriz, use_container_width=True, hide_index=True, num_rows="dynamic")
-        st.session_state.df_matriz = edited_df
+        st.session_state.df_matriz = st.data_editor(st.session_state.df_matriz, use_container_width=True, hide_index=True, num_rows="dynamic")
         if st.button("🗑️ Borrar Todo"):
             st.session_state.df_matriz = pd.DataFrame()
             st.session_state.go = False
             st.rerun()
 
 with col_ct:
-    metodo = st.radio("Operación:", ["Gauss-Jordan", "Inversa", "Determinante"])
+    metodo = st.radio("Selecciona la operación:", ["Gauss-Jordan", "Inversa", "Determinante"])
     if st.button("CALCULAR", use_container_width=True, type="primary"):
         if not st.session_state.df_matriz.empty:
             st.session_state.m_obj = sp.Matrix(st.session_state.df_matriz.values).applyfunc(lambda x: sp.sympify(x))
