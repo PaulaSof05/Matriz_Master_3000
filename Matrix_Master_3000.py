@@ -8,30 +8,18 @@ st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 # --- CSS PARA DISEÑO PROFESIONAL IZQUIERDO Y TABLAS ---
 st.markdown("""
     <style>
-    .op-container {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-start;
-        justify-content: space-between;
-        margin-bottom: 40px;
-        gap: 20px;
-    }
-    .matrix-side {
-        flex: 1;
-        text-align: left;
-    }
     .table-side {
-        flex: 2;
         background-color: #1e1e1e;
         padding: 15px;
         border-radius: 8px;
         border-left: 5px solid #ff4b4b;
+        color: #e0e0e0;
     }
     .arit-table { 
         width: 100%; 
         border-collapse: collapse; 
         text-align: center; 
-        color: #e0e0e0;
+        margin-top: 10px;
     }
     .arit-table td { border: 1px solid #444; padding: 8px; }
     .res-row { background-color: #1b3a24; font-weight: bold; color: #a5d6a7; }
@@ -44,18 +32,21 @@ if 'df_matriz' not in st.session_state:
 if 'go' not in st.session_state:
     st.session_state.go = False
 
-# --- RENDERIZADO DE MATRIZ CON RAYA Y FRACCIONES ---
+# --- RENDERIZADO DE MATRIZ (CORREGIDO) ---
 def render_mat(M, modo, simbolo="\\approx"):
     n, m = M.shape
-    # Forzar formato de fracción vertical (smallfrac o frac)
-    M_tex = sp.latex(M, fallback_rescale=True)
+    # Eliminamos 'fallback_rescale' para evitar el TypeError
+    M_tex = sp.latex(M) 
+    
     if modo != "Determinante":
+        # Insertar la línea vertical para la matriz aumentada
         c_str = "c" * (m-1) + "|c"
         M_tex = M_tex.replace(r"\begin{matrix}", rf"\begin{{array}}{{{c_str}}}").replace(r"\end{matrix}", r"\end{array}")
+    
     return f"{simbolo} {M_tex}"
 
-# --- TABLA ARITMÉTICA LADO DERECHO ---
-def dibujar_paso(M_prev, M_curr, f_obj, f_piv, factor, titulo, modo, es_primera=False):
+# --- TABLA ARITMÉTICA ---
+def dibujar_paso(M_prev, f_obj, f_piv, factor, titulo, modo, es_primera=False):
     simb = "=" if es_primera else "\\approx"
     
     col_mat, col_tab = st.columns([1, 2])
@@ -86,7 +77,7 @@ def resolver(M, modo):
     st.markdown("### Proceso de Resolución")
 
     for i in range(min(n, cols)):
-        # 1. Pivoteo (Equipo 4)
+        # 1. Pivoteo
         if M_t[i, i] == 0:
             for k in range(i + 1, n):
                 if M_t[k, i] != 0:
@@ -97,27 +88,25 @@ def resolver(M, modo):
                     es_primera = False
                     break
         
-        # 2. Normalización (Equipo 3) - ¡No se salta pasos aunque sea 1!
+        # 2. Normalización (Pivote a 1) - Obligatorio según algoritmo
         piv = M_t[i, i]
         if piv != 0:
             M_before = M_t.copy()
             M_t[i, :] = sp.simplify(M_t[i, :] / piv)
             
-            # Mostrar paso de normalización
             c_m, c_t = st.columns([1, 2])
             with c_m:
                 st.latex(render_mat(M_before, modo, "=" if es_primera else "\\approx"))
-                st.write(f"$R_{{{i+1}}} / {sp.latex(piv)} \\to R_{{{i+1}}}$")
+                st.write(f"$R_{{{i+1}}} / ({sp.latex(piv)}) \\to R_{{{i+1}}}$")
             with c_t:
-                st.empty() # Espacio para mantener alineación
+                st.empty() 
             es_primera = False
 
-        # 3. Eliminación (Equipos 1 y 2)
+        # 3. Eliminación
         for j in range(n):
             if i != j:
                 if modo == "Determinante" and j < i: continue
                 factor = M_t[j, i]
-                # La máquina opera aunque sea 0 o 1, pero aquí filtramos 0 para no saturar la pantalla
                 if factor != 0:
                     f_o = M_t[j, :].tolist()[0]
                     f_p = M_t[i, :].tolist()[0]
@@ -125,7 +114,7 @@ def resolver(M, modo):
                     M_t[j, :] = sp.simplify(M_t[j, :] - factor * M_t[i, :])
                     
                     dibujar_paso(
-                        M_old_step, M_t, f_o, f_p, factor, 
+                        M_old_step, f_o, f_p, factor, 
                         f"$R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}} \\to R_{{{j+1}}}$",
                         modo, es_primera
                     )
@@ -168,5 +157,8 @@ with col_ct:
 
 if st.session_state.go:
     M_val = st.session_state.m_obj
-    m_proc = M_val.row_join(sp.eye(M_val.rows)) if metodo == "Inversa" else M_val
-    resolver(m_proc, metodo)
+    if (metodo in ["Inversa", "Determinante"]) and M_val.rows != M_val.cols:
+        st.error("Error: Requiere matriz cuadrada.")
+    else:
+        m_proc = M_val.row_join(sp.eye(M_val.rows)) if metodo == "Inversa" else M_val
+        resolver(m_proc, metodo)
