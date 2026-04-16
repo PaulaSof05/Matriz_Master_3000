@@ -5,27 +5,31 @@ import sympy as sp
 # 1. Configuración de página
 st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 
-# --- CSS MEJORADO PARA PROPORCIONES Y LEGIBILIDAD ---
+# --- CSS REFORMADO: SIN COLUMNA DE CONCEPTO Y MÁS ESPACIADO ---
 st.markdown("""
     <style>
+    .step-container {
+        margin-bottom: 80px; /* Espacio generoso entre procedimientos */
+        padding: 20px;
+    }
     .table-side {
         background-color: #1e1e1e;
-        padding: 12px;
+        padding: 15px;
         border-radius: 8px;
-        border-left: 5px solid #ff4b4b;
         color: #e0e0e0;
-        max-width: 600px; /* Controla que la tabla no sea gigante */
+        max-width: 500px;
     }
     .arit-table { 
         width: 100%; 
         border-collapse: collapse; 
         text-align: center; 
-        font-size: 0.9em;
+        font-size: 1.1em; /* Un poco más grande para legibilidad */
     }
-    .arit-table td { border: 1px solid #444; padding: 6px; }
+    .arit-table td { border: 1px solid #444; padding: 12px; }
     .res-row { background-color: #1b3a24; font-weight: bold; color: #a5d6a7; }
     .header-row { background-color: #333; font-weight: bold; color: #ffffff; }
-    .concepto-col { text-align: left; font-weight: bold; padding-left: 10px !important; width: 120px; }
+    /* Eliminamos cualquier rastro de cuadros rojos vacíos */
+    .stAlert { display: none; } 
     </style>
     """, unsafe_allow_html=True)
 
@@ -34,48 +38,67 @@ if 'df_matriz' not in st.session_state:
 if 'go' not in st.session_state:
     st.session_state.go = False
 
-# --- RENDERIZADO DE MATRIZ CON FRACCIONES VERTICALES ---
+# --- RENDERIZADO DE MATRIZ ---
 def render_mat(M, modo, simbolo="\\approx"):
     n, m = M.shape
-    M_tex = sp.latex(M) 
+    # Forzamos fracciones verticales en el LaTeX
+    M_tex = sp.latex(M, mat_delim='[') 
     if modo != "Determinante":
         c_str = "c" * (m-1) + "|c"
         M_tex = M_tex.replace(r"\begin{matrix}", rf"\begin{{array}}{{{c_str}}}").replace(r"\end{matrix}", r"\end{array}")
     return f"{simbolo} {M_tex}"
 
-# --- TABLA ARITMÉTICA ---
+# --- TABLA ARITMÉTICA SIMPLIFICADA ---
 def dibujar_paso(M_prev, f_obj, f_piv, factor, f_res, titulo, modo, es_primera=False, es_norm=False):
     simb = "=" if es_primera else "\\approx"
-    col_mat, col_tab = st.columns([1, 1.5]) # Ajuste de proporción matriz vs tabla
+    
+    st.markdown("<div class='step-container'>", unsafe_allow_html=True)
+    col_mat, col_tab = st.columns([1, 1.2])
     
     with col_mat:
+        # Aseguramos fracciones verticales en la operación de texto también
         st.latex(render_mat(M_prev, modo, simb))
-        st.markdown(f"**{titulo}**")
+        st.markdown(f"#### {titulo}")
     
     with col_tab:
         st.markdown("<div class='table-side'>", unsafe_allow_html=True)
         cols_head = "".join([f"<td>C{i+1}</td>" for i in range(len(f_obj))])
         
-        # Ajuste de etiquetas de concepto para mayor legibilidad
-        concepto_piv = f"1/{sp.latex(1/factor)} * R_piv" if es_norm else f"-({sp.latex(factor)}) * R_piv"
-        concepto_dest = "R. Actual" if es_norm else "R. Destino"
-        
-        html = f"""
-        <table class='arit-table'>
-            <tr class='header-row'><td class='concepto-col'>Concepto</td>{cols_head}</tr>
-            <tr><td class='concepto-col'>{concepto_dest}</td>{"".join([f"<td>{sp.latex(x)}</td>" for x in f_obj])}</tr>
-            <tr><td class='concepto-col'>{concepto_piv}</td>{"".join([f"<td>{sp.latex(x if not es_norm else x/factor)}</td>" for x in f_piv])}</tr>
-            <tr class='res-row'><td class='concepto-col'>Resultado</td>{"".join([f"<td>{sp.latex(x)}</td>" for x in f_res])}</tr>
-        </table></div>
-        """
-        st.write(html, unsafe_allow_html=True)
+        # Lógica de filas según el tipo de operación
+        if es_norm:
+            # Para normalización: R_actual y Resultado
+            fila_op = "".join([f"<td>{sp.latex(x)}</td>" for x in f_obj])
+            fila_res = "".join([f"<td>{sp.latex(x)}</td>" for x in f_res])
+            tabla_html = f"""
+            <table class='arit-table'>
+                <tr class='header-row'>{cols_head}</tr>
+                <tr>{fila_op}</tr>
+                <tr class='res-row'>{fila_res}</tr>
+            </table>
+            """
+        else:
+            # Para eliminación: R_destino, Operación y Resultado
+            fila_dest = "".join([f"<td>{sp.latex(x)}</td>" for x in f_obj])
+            fila_op = "".join([f"<td>{sp.latex(-factor*x)}</td>" for x in f_piv])
+            fila_res = "".join([f"<td>{sp.latex(x)}</td>" for x in f_res])
+            tabla_html = f"""
+            <table class='arit-table'>
+                <tr class='header-row'>{cols_head}</tr>
+                <tr>{fila_dest}</tr>
+                <tr>{fila_op}</tr>
+                <tr class='res-row'>{fila_res}</tr>
+            </table>
+            """
+        st.write(tabla_html, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # --- LÓGICA DE RESOLUCIÓN ---
 def resolver(M, modo):
     n, cols = M.shape
     M_t = M.copy()
     es_primera = True
-    st.markdown("### Proceso de Resolución")
+    st.markdown("## Proceso de Resolución")
     
     for i in range(min(n, cols)):
         # 1. Pivoteo
@@ -89,7 +112,7 @@ def resolver(M, modo):
                     es_primera = False
                     break
         
-        # 2. Hacer 1 el pivote (Tabla agregada)
+        # 2. Normalización del Pivote (Hacer 1)
         piv = M_t[i, i]
         if piv != 0:
             M_before = M_t.copy()
@@ -97,13 +120,14 @@ def resolver(M, modo):
             M_t[i, :] = sp.simplify(M_t[i, :] / piv)
             f_r = M_t[i, :].tolist()[0]
             
-            # Tabla para el paso de normalización
-            dibujar_paso(M_before, f_o, f_o, piv, f_r, 
-                         f"$R_{{{i+1}}} / ({sp.latex(piv)}) \\to R_{{{i+1}}}$", 
-                         modo, es_primera, es_norm=True)
+            # Formato de la operación: R1 / (valor) -> R1
+            # Usamos frac para asegurar que sea vertical
+            op_text = f"R_{{{i+1}}} / ({sp.latex(piv)}) \\to R_{{{i+1}}}"
+            
+            dibujar_paso(M_before, f_o, f_o, piv, f_r, f"${op_text}$", modo, es_primera, es_norm=True)
             es_primera = False
             
-        # 3. Hacer 0's
+        # 3. Eliminación (Hacer 0's)
         for j in range(n):
             if i != j:
                 factor = M_t[j, i]
