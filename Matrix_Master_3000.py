@@ -2,35 +2,40 @@ import streamlit as st
 import pandas as pd
 import sympy as sp
 
-# 1. Configuracion de pagina
+# 1. Configuración de pagina
 st.set_page_config(page_title="Matrix Master 3000", layout="wide")
 
-# --- CSS PARA RESTAURAR EL DISEÑO OSCURO PROFESIONAL ---
+# --- CSS PARA DISEÑO PROFESIONAL IZQUIERDO Y TABLAS ---
 st.markdown("""
     <style>
-    /* Estilo general del contenedor de operaciones */
-    .op-card {
-        background-color: #1e1e1e;
-        border-left: 5px solid #ff4b4b;
-        padding: 20px;
-        margin: 15px 0;
-        border-radius: 5px;
-        color: white;
+    .op-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 40px;
+        gap: 20px;
     }
-    /* Tabla aritmética con estilo oscuro */
+    .matrix-side {
+        flex: 1;
+        text-align: left;
+    }
+    .table-side {
+        flex: 2;
+        background-color: #1e1e1e;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid #ff4b4b;
+    }
     .arit-table { 
         width: 100%; 
         border-collapse: collapse; 
         text-align: center; 
-        margin-top: 15px;
         color: #e0e0e0;
     }
-    .arit-table td { border: 1px solid #444; padding: 10px; }
+    .arit-table td { border: 1px solid #444; padding: 8px; }
     .res-row { background-color: #1b3a24; font-weight: bold; color: #a5d6a7; }
     .header-row { background-color: #333; font-weight: bold; }
-    
-    /* Ajuste de editor de datos */
-    [data-testid="stTable"] thead { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -39,21 +44,28 @@ if 'df_matriz' not in st.session_state:
 if 'go' not in st.session_state:
     st.session_state.go = False
 
-# --- FUNCIÓN PARA RENDERIZAR MATRIZ CON RAYA DIVISORIA ---
-def mostrar_matriz_aumentada(M, modo):
-    if modo == "Determinante":
-        st.latex(sp.latex(M))
-    else:
-        # Crea la representación LaTeX con la línea vertical antes de la última columna
-        n, m = M.shape
+# --- RENDERIZADO DE MATRIZ CON RAYA Y FRACCIONES ---
+def render_mat(M, modo, simbolo="\\approx"):
+    n, m = M.shape
+    # Forzar formato de fracción vertical (smallfrac o frac)
+    M_tex = sp.latex(M, fallback_rescale=True)
+    if modo != "Determinante":
         c_str = "c" * (m-1) + "|c"
-        lat_str = sp.latex(M).replace(r"\begin{matrix}", rf"\begin{{array}}{{{c_str}}}").replace(r"\end{matrix}", r"\end{array}")
-        st.latex(lat_str)
+        M_tex = M_tex.replace(r"\begin{matrix}", rf"\begin{{array}}{{{c_str}}}").replace(r"\end{matrix}", r"\end{array}")
+    return f"{simbolo} {M_tex}"
 
-# --- TABLA DE OPERACIONES CON DISEÑO CORREGIDO ---
-def tabla_aritmetica(f_obj, f_piv, factor, f_res, titulo):
-    with st.container():
-        st.markdown(f"<div class='op-card'><b>{titulo}</b>", unsafe_allow_html=True)
+# --- TABLA ARITMÉTICA LADO DERECHO ---
+def dibujar_paso(M_prev, M_curr, f_obj, f_piv, factor, titulo, modo, es_primera=False):
+    simb = "=" if es_primera else "\\approx"
+    
+    col_mat, col_tab = st.columns([1, 2])
+    
+    with col_mat:
+        st.latex(render_mat(M_prev, modo, simb))
+        st.markdown(f"**{titulo}**")
+    
+    with col_tab:
+        st.markdown("<div class='table-side'>", unsafe_allow_html=True)
         cols_head = "".join([f"<td>C{i+1}</td>" for i in range(len(f_obj))])
         html = f"""
         <table class='arit-table'>
@@ -69,55 +81,59 @@ def tabla_aritmetica(f_obj, f_piv, factor, f_res, titulo):
 def resolver(M, modo):
     n, cols = M.shape
     M_t = M.copy()
-    det_signo = 1
+    es_primera = True
     
     st.markdown("### Proceso de Resolución")
-    mostrar_matriz_aumentada(M_t, modo)
 
     for i in range(min(n, cols)):
-        # Equipo 4: Pivoteo
+        # 1. Pivoteo (Equipo 4)
         if M_t[i, i] == 0:
             for k in range(i + 1, n):
                 if M_t[k, i] != 0:
+                    M_old = M_t.copy()
                     M_t[i, :], M_t[k, :] = M_t[k, :], M_t[i, :]
-                    det_signo *= -1
-                    st.info(f"Intercambio: $R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
-                    mostrar_matriz_aumentada(M_t, modo)
+                    st.latex(render_mat(M_old, modo, "=" if es_primera else "\\approx"))
+                    st.info(f"$R_{{{i+1}}} \\leftrightarrow R_{{{k+1}}}$")
+                    es_primera = False
                     break
         
+        # 2. Normalización (Equipo 3) - ¡No se salta pasos aunque sea 1!
         piv = M_t[i, i]
-        if piv == 0: continue
-
-        # Equipo 3: Normalización (Hacer 1 pivote)
-        if modo != "Determinante" and piv != 1:
+        if piv != 0:
+            M_before = M_t.copy()
             M_t[i, :] = sp.simplify(M_t[i, :] / piv)
-            st.write(f"Normalización: $R_{{{i+1}}} = R_{{{i+1}}} / ({sp.latex(piv)})$")
-            mostrar_matriz_aumentada(M_t, modo)
+            
+            # Mostrar paso de normalización
+            c_m, c_t = st.columns([1, 2])
+            with c_m:
+                st.latex(render_mat(M_before, modo, "=" if es_primera else "\\approx"))
+                st.write(f"$R_{{{i+1}}} / {sp.latex(piv)} \\to R_{{{i+1}}}$")
+            with c_t:
+                st.empty() # Espacio para mantener alineación
+            es_primera = False
 
-        # Equipos 2 y 1: Eliminación (Ceros abajo y arriba)
+        # 3. Eliminación (Equipos 1 y 2)
         for j in range(n):
             if i != j:
                 if modo == "Determinante" and j < i: continue
                 factor = M_t[j, i]
+                # La máquina opera aunque sea 0 o 1, pero aquí filtramos 0 para no saturar la pantalla
                 if factor != 0:
                     f_o = M_t[j, :].tolist()[0]
                     f_p = M_t[i, :].tolist()[0]
+                    M_old_step = M_t.copy()
                     M_t[j, :] = sp.simplify(M_t[j, :] - factor * M_t[i, :])
                     
-                    tabla_aritmetica(f_o, f_p, factor, M_t[j, :].tolist()[0], 
-                                   f"Operación: $R_{{{j+1}}} = R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}}$")
-                    mostrar_matriz_aumentada(M_t, modo)
+                    dibujar_paso(
+                        M_old_step, M_t, f_o, f_p, factor, 
+                        f"$R_{{{j+1}}} - ({sp.latex(factor)})R_{{{i+1}}} \\to R_{{{j+1}}}$",
+                        modo, es_primera
+                    )
+                    es_primera = False
 
     st.markdown("---")
-    if modo == "Determinante":
-        det_final = sp.simplify(det_signo * sp.Mul(*[M_t[x, x] for x in range(n)]))
-        st.success(f"### Valor del Determinante: **{sp.latex(det_final)}**")
-    elif modo == "Inversa":
-        st.success("### Matriz Inversa Resultante ($A^{-1}$):")
-        st.latex(sp.latex(M_t[:, n:]))
-    else:
-        st.success("### Resultado Final:")
-        mostrar_matriz_aumentada(M_t, modo)
+    st.success("### Resultado Final:")
+    st.latex(render_mat(M_t, modo, "\\approx"))
 
 # --- INTERFAZ ---
 st.markdown("#### Grupo 2AM2")
@@ -126,7 +142,6 @@ st.title("🚀 Matrix Master 3000")
 col_in, col_ct = st.columns([2, 1])
 
 with col_in:
-    st.markdown("### ⌨️ Entrada por Renglón")
     entrada = st.chat_input("Escribe los números (ej: 1 2 3) y presiona Enter")
     if entrada:
         fila = entrada.split()
@@ -134,7 +149,6 @@ with col_in:
         if st.session_state.df_matriz.empty:
             st.session_state.df_matriz = df_temp
         else:
-            df_temp.columns = st.session_state.df_matriz.columns if len(fila) == len(st.session_state.df_matriz.columns) else [str(k) for k in range(len(fila))]
             st.session_state.df_matriz = pd.concat([st.session_state.df_matriz, df_temp], ignore_index=True).fillna("0")
         st.rerun()
 
@@ -146,8 +160,7 @@ with col_in:
             st.rerun()
 
 with col_ct:
-    st.markdown("### ⚙️ Configuración")
-    metodo = st.radio("Selecciona la operación:", ["Gauss-Jordan", "Inversa", "Determinante"])
+    metodo = st.radio("Operación:", ["Gauss-Jordan", "Inversa", "Determinante"])
     if st.button("CALCULAR", use_container_width=True, type="primary"):
         if not st.session_state.df_matriz.empty:
             st.session_state.m_obj = sp.Matrix(st.session_state.df_matriz.values).applyfunc(lambda x: sp.sympify(x))
@@ -155,8 +168,5 @@ with col_ct:
 
 if st.session_state.go:
     M_val = st.session_state.m_obj
-    if (metodo in ["Inversa", "Determinante"]) and M_val.rows != M_val.cols:
-        st.error("Error: La matriz debe ser cuadrada.")
-    else:
-        m_proc = M_val.row_join(sp.eye(M_val.rows)) if metodo == "Inversa" else M_val
-        resolver(m_proc, metodo)
+    m_proc = M_val.row_join(sp.eye(M_val.rows)) if metodo == "Inversa" else M_val
+    resolver(m_proc, metodo)
